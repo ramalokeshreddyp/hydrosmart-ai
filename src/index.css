@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 195 30% 97%;
+    --foreground: 200 50% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 50% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 50% 10%;
+
+    --primary: 192 82% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 40% 92%;
+    --secondary-foreground: 200 50% 15%;
+
+    --muted: 195 25% 94%;
+    --muted-foreground: 200 15% 50%;
+
+    --accent: 168 70% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 195 25% 88%;
+    --input: 195 25% 88%;
+    --ring: 192 82% 45%;
+
+    --radius: 1rem;
+
+    --water-light: 195 85% 92%;
+    --water-medium: 195 75% 70%;
+    --water-deep: 200 80% 50%;
+    --water-glow: 192 100% 60%;
+    --success: 152 60% 45%;
+    --warning: 38 92% 55%;
+    --hot: 15 85% 55%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --font-heading: 'Space Grotesk', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .dark {
+    --background: 200 40% 6%;
+    --foreground: 195 30% 95%;
+    --card: 200 35% 10%;
+    --card-foreground: 195 30% 95%;
+    --popover: 200 35% 10%;
+    --popover-foreground: 195 30% 95%;
+    --primary: 192 82% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 30% 15%;
+    --secondary-foreground: 195 30% 90%;
+    --muted: 200 25% 15%;
+    --muted-foreground: 195 15% 55%;
+    --accent: 168 70% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 200 25% 18%;
+    --input: 200 25% 18%;
+    --ring: 192 82% 45%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  /* Better focus styles for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring rounded-sm;
+  }
+
+  /* Smooth touch scrolling */
+  .overflow-y-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+  }
+
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/60 shadow-xl;
+  }
+
+  .water-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--water-light)),
+      hsl(var(--primary)),
+      hsl(var(--water-deep))
+    );
+  }
+
+  .text-gradient-water {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Touch-friendly minimum tap target */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}
