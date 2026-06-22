@@ -78,10 +78,10 @@ export function getReminderInterval(profile: UserProfile, weather?: WeatherData)
   }
 
   const temp = weather.temp;
-  if (temp < 25) return 90;
-  if (temp <= 35) return 60;
-  if (temp <= 40) return 45;
-  return 30; // > 40°C
+  if (temp < 20) return 120; // below 20°C -> 2 hours
+  if (temp <= 30) return 90;  // 20°C - 30°C -> 1.5 hours
+  if (temp <= 40) return 60;  // 30°C - 40°C -> 1 hour
+  return 30;                 // above 40°C -> 30 minutes
 }
 
 export function getTemperatureLevel(temp: number): "cool" | "warm" | "hot" | "extreme" {

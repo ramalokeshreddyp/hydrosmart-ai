@@ -102,14 +102,14 @@ describe("hydration.ts - Core Functions", () => {
     });
 
     it("should adjust reminder interval based on temperature if enabled", () => {
-      const coolWeather: WeatherData = { temp: 20, humidity: 50, description: "Cool", icon: "☀️", city: "New York" };
-      const warmWeather: WeatherData = { temp: 30, humidity: 50, description: "Warm", icon: "☀️", city: "New York" };
-      const hotWeather: WeatherData = { temp: 38, humidity: 50, description: "Hot", icon: "☀️", city: "New York" };
+      const coldWeather: WeatherData = { temp: 15, humidity: 50, description: "Cold", icon: "❄️", city: "New York" };
+      const warmWeather: WeatherData = { temp: 25, humidity: 50, description: "Warm", icon: "☀️", city: "New York" };
+      const hotWeather: WeatherData = { temp: 35, humidity: 50, description: "Hot", icon: "☀️", city: "New York" };
       const extremeWeather: WeatherData = { temp: 42, humidity: 50, description: "Extreme", icon: "☀️", city: "New York" };
 
-      expect(getReminderInterval(mockProfile, coolWeather)).toBe(90);
-      expect(getReminderInterval(mockProfile, warmWeather)).toBe(60);
-      expect(getReminderInterval(mockProfile, hotWeather)).toBe(45);
+      expect(getReminderInterval(mockProfile, coldWeather)).toBe(120);
+      expect(getReminderInterval(mockProfile, warmWeather)).toBe(90);
+      expect(getReminderInterval(mockProfile, hotWeather)).toBe(60);
       expect(getReminderInterval(mockProfile, extremeWeather)).toBe(30);
     });
   });
