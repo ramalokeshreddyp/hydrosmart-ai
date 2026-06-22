@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Security Policies
+-- Security Policies (Drop if exists first to avoid duplicate policy errors)
+DROP POLICY IF EXISTS "Users can manage their own profiles" ON public.profiles;
 CREATE POLICY "Users can manage their own profiles" 
   ON public.profiles FOR ALL 
   USING (auth.uid() = id);
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.intake_logs (
 
 ALTER TABLE public.intake_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own intake logs" ON public.intake_logs;
 CREATE POLICY "Users can manage their own intake logs" 
   ON public.intake_logs FOR ALL 
   USING (auth.uid() = user_id);
@@ -53,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.reminder_logs (
 
 ALTER TABLE public.reminder_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own reminder logs" ON public.reminder_logs;
 CREATE POLICY "Users can manage their own reminder logs" 
   ON public.reminder_logs FOR ALL 
   USING (auth.uid() = user_id);
