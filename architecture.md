@@ -1,461 +1,283 @@
-# 🏗️ HydroSmart — System Architecture
+# 🏗️ HydroSmart — System Architecture Documentation
 
-## Table of Contents
-
-- [1. System Overview](#1-system-overview)
-- [2. Architecture Principles](#2-architecture-principles)
-- [3. High-Level Architecture](#3-high-level-architecture)
-- [4. Component Architecture](#4-component-architecture)
-- [5. Data Flow Architecture](#5-data-flow-architecture)
-- [6. State Management](#6-state-management)
-- [7. Business Logic Layer](#7-business-logic-layer)
-- [8. External Integrations](#8-external-integrations)
-- [9. UI Architecture & Design System](#9-ui-architecture--design-system)
-- [10. Error Handling Architecture](#10-error-handling-architecture)
-- [11. Performance Architecture](#11-performance-architecture)
-- [12. Security Considerations](#12-security-considerations)
-- [13. Scalability & Future Architecture](#13-scalability--future-architecture)
+This document describes the architectural design, component layers, data pipelines, state strategies, and integration boundaries of **HydroSmart**.
 
 ---
 
-## 1. System Overview
+## 📋 Table of Contents
 
-HydroSmart is a **client-side single-page application (SPA)** built with React 18 and TypeScript. It implements a weather-adaptive hydration tracking system that dynamically computes personalized water intake goals using a multi-factor algorithm.
-
-### Design Philosophy
-
-```
-┌────────────────────────────────────────────────────┐
-│                  DESIGN PRINCIPLES                 │
-├────────────────────────────────────────────────────┤
-│  🎯 Single Responsibility — each module owns one   │
-│     concern (weather, hydration, gamification)     │
-│  📦 Colocation — components live near their logic  │
-│  🔌 Loose Coupling — modules communicate through   │
-│     well-defined interfaces                        │
-│  🧱 Composition — complex UI from simple pieces    │
-│  📱 Mobile-First — designed for touch, scales up   │
-│  ♿ Accessible — ARIA labels, keyboard support      │
-└────────────────────────────────────────────────────┘
-```
+- [1. System Design & Architectural Strategy](#1-system-design--architectural-strategy)
+- [2. High-Level Architecture](#2-high-level-architecture)
+- [3. Component Architecture & Hierarchy](#3-component-architecture--hierarchy)
+- [4. Data Flow & Synchronization Layer](#4-data-flow--synchronization-layer)
+- [5. State Management & Offline-First Strategy](#5-state-management--offline-first-strategy)
+- [6. Core Math & Logical Engines](#6-core-math--logical-engines)
+- [7. External Integrations](#7-external-integrations)
+- [8. Security Model & Row Level Security (RLS)](#8-security-model--row-level-security-rls)
+- [9. Error Handling & Fault Tolerance](#9-error-handling--fault-tolerance)
+- [10. Design System & Typography Integration](#10-design-system--typography-integration)
 
 ---
 
-## 2. Architecture Principles
+## 1. System Design & Architectural Strategy
 
-| Principle | Application |
-|-----------|-------------|
-| **Separation of Concerns** | Business logic (`/lib`) is fully decoupled from UI (`/components`) |
-| **Type Safety** | All data structures use TypeScript interfaces; no `any` types |
-| **Pure Functions** | Core algorithms (`calculateDailyGoal`, `computeStats`) are pure and testable |
-| **Graceful Degradation** | App works without weather API; falls back to base recommendations |
-| **Progressive Enhancement** | Notifications are optional; core tracking works without them |
-| **Responsive by Default** | All components use Tailwind breakpoints, safe-area insets |
+HydroSmart is built as a hybrid **Client-Server Single Page Application (SPA)** that prioritizes **resilient availability**. The application is structured to decouple views from core math engines and abstract data management through an adapter pattern that switches between cloud database schemas and browser storage.
+
+### Core Architectural Principles:
+* **Separation of Concerns**: UI rendering (`/components`) is strictly isolated from calculations and API parsing (`/lib`).
+* **Graceful Degradation**: Features fall back to reasonable defaults if external dependencies (such as weather servers or databases) become unavailable.
+* **Pure Logical Engines**: Core math operations like goal sizing and streak calculations are structured as pure functions to simplify unit testing.
+* **Resilient Data Access**: DB client wrapper (`db`) operates transparently, caching transactions locally so stats remain warm and responsive.
 
 ---
 
-## 3. High-Level Architecture
+## 2. High-Level Architecture
+
+The system is organized into three distinct layers: Presentation, Business Logic, and the Data Integration Layer.
 
 ```mermaid
 graph TB
-    subgraph Presentation["Presentation Layer"]
-        direction LR
-        Pages["Pages<br/>(Index, NotFound)"]
-        Components["Components<br/>(Dashboard, Trackers, Charts)"]
-        UI["UI Primitives<br/>(shadcn/ui + Radix)"]
+    subgraph Presentation_Layer["Presentation Layer (Client Browser)"]
+        App["App.tsx<br/>Application Bootstrap"]
+        EB["ErrorBoundary.tsx<br/>Runtime Shield"]
+        AuthGate["Auth.tsx<br/>Session Gatekeeper"]
+        Dash["Dashboard.tsx<br/>State Coordinator"]
+        UI["UI Components<br/>(Circular Rings, Charts, Forms)"]
     end
 
-    subgraph Business["Business Logic Layer"]
-        direction LR
-        Hydration["hydration.ts<br/>Goal Algorithm"]
-        Gamification["gamification.ts<br/>Badge Engine"]
-        Notifications["notifications.ts<br/>Reminder System"]
-        Weather["weather.ts<br/>API Client"]
+    subgraph Business_Layer["Business Logic Layer (Code Engines)"]
+        GoalEng["hydration.ts<br/>Hydration Engine"]
+        BadgeEng["gamification.ts<br/>Badge Evaluator"]
+        RemindEng["notifications.ts<br/>Smart Reminders"]
+        WeatherCl["weather.ts<br/>Weather Normalizer"]
     end
 
-    subgraph Data["Data Layer"]
-        direction LR
-        LS["localStorage<br/>Profiles, Logs, Settings"]
-        API["OpenWeatherMap<br/>Weather API"]
-        BrowserAPI["Browser APIs<br/>Notifications, Crypto"]
+    subgraph Data_Layer["Data Integration Layer"]
+        DBClient["supabase.ts (db helper)<br/>Dynamic Router"]
+        LS["LocalStorage Cache<br/>Offline Mirror"]
+        SupabaseDB["Supabase Postgres<br/>Cloud Database"]
+        WeatherAPI["OpenWeatherMap API<br/>Climate REST Endpoint"]
+        PushAPI["Browser Push Service<br/>Notification Trigger"]
     end
 
-    Presentation --> Business
-    Business --> Data
-
-    style Presentation fill:#1e293b,stroke:#38bdf8,color:#e2e8f0
-    style Business fill:#1e293b,stroke:#0891b2,color:#e2e8f0
-    style Data fill:#0c4a6e,stroke:#38bdf8,color:#e2e8f0
+    App --> EB
+    EB --> AuthGate
+    AuthGate --> Dash
+    Dash --> UI
+    Dash --> Business_Layer
+    Business_Layer --> DBClient
+    DBClient -->|Read/Write if Online| SupabaseDB
+    DBClient -->|Read/Write if Offline| LS
+    WeatherCl --> WeatherAPI
+    RemindEng --> PushAPI
+    
+    style Presentation_Layer fill:#0f172a,stroke:#0891b2,color:#e2e8f0
+    style Business_Layer fill:#1e293b,stroke:#0f766e,color:#e2e8f0
+    style Data_Layer fill:#0c4a6e,stroke:#38bdf8,color:#e2e8f0
 ```
-
-### Layer Responsibilities
-
-| Layer | Files | Responsibility |
-|-------|-------|---------------|
-| **Presentation** | `components/`, `pages/` | Rendering, user interaction, animation |
-| **Business Logic** | `lib/` | Algorithms, data transformation, API calls |
-| **Data** | localStorage, OpenWeatherMap | Persistence, external data sources |
 
 ---
 
-## 4. Component Architecture
+## 3. Component Architecture & Hierarchy
 
-### Component Hierarchy
+The visual shell uses an orchestrator container pattern where one controller component manages asynchronous loops, session subscriptions, and passes down state.
 
 ```mermaid
 graph TD
-    App["App.tsx<br/>QueryClient + Router + Tooltip"]
-    EB["ErrorBoundary<br/>Class Component"]
-    Router["BrowserRouter<br/>Routes"]
-    Index["Index Page"]
-    Dashboard["Dashboard<br/>State Orchestrator"]
+    App["App.tsx (Root Providers)"]
+    EB["ErrorBoundary.tsx (Class Guard)"]
+    Router["BrowserRouter"]
+    Index["Index.tsx Page"]
+    Dashboard["Dashboard.tsx (State Orchestrator)"]
 
     App --> EB --> Router --> Index --> Dashboard
 
-    Dashboard --> PS["ProfileSetup<br/>Onboarding Form"]
-    Dashboard --> WP["WaterProgress<br/>SVG Ring"]
-    Dashboard --> WC["WeatherCard<br/>Weather Display"]
-    Dashboard --> QA["QuickAdd<br/>Intake Buttons"]
-    Dashboard --> ST["SleepTracker<br/>Sleep Logger"]
-    Dashboard --> AT["ActivityTracker<br/>Exercise Logger"]
-    Dashboard --> RC["ReminderControl<br/>Notification Toggle"]
-    Dashboard --> GP["GamificationPanel<br/>Badges & Stats"]
-    Dashboard --> WK["WeeklyChart<br/>Recharts Bar"]
-    Dashboard --> BT["BadgeUnlockToast<br/>Achievement Popup"]
+    subgraph Guards["Authentication Gate"]
+        Auth["Auth.tsx (Login / Register Card)"]
+    end
 
-    style Dashboard fill:#0891b2,stroke:#38bdf8,color:#fff
+    subgraph Views["Dashboard Child Components"]
+        ProfileSetup["ProfileSetup.tsx (Onboarding Wizard)"]
+        WaterProgress["WaterProgress.tsx (SVG Progress Ring)"]
+        WeatherCard["WeatherCard.tsx (Temperature Card & Simulator)"]
+        QuickAdd["QuickAdd.tsx (Intake Logging Panel)"]
+        ReminderControl["ReminderControl.tsx (Notification Permissions)"]
+        GamificationPanel["GamificationPanel.tsx (Badge Grid & Metrics)"]
+        WeeklyChart["WeeklyChart.tsx (Recharts SVG Analytics)"]
+        Toast["BadgeUnlockToast.tsx (Achievement Popup)"]
+    end
+
+    Dashboard -->|Session check fails| Auth
+    Dashboard -->|No Profile details| ProfileSetup
+    Dashboard --> WaterProgress
+    Dashboard --> WeatherCard
+    Dashboard --> QuickAdd
+    Dashboard --> ReminderControl
+    Dashboard --> GamificationPanel
+    Dashboard --> WeeklyChart
+    Dashboard --> Toast
+
+    style Dashboard fill:#0891b2,stroke:#06b6d4,color:#fff
+    style Auth fill:#dc2626,stroke:#ef4444,color:#fff
 ```
 
-### Component Classification
-
-| Type | Components | Pattern |
-|------|-----------|---------|
-| **Container** | Dashboard | Owns state, orchestrates data flow |
-| **Feature** | SleepTracker, ActivityTracker, QuickAdd, GamificationPanel | Self-contained features with local state + callbacks |
-| **Display** | WaterProgress, WeatherCard, WeeklyChart | Pure presentation, receive data via props |
-| **Utility** | ErrorBoundary, BadgeUnlockToast, ReminderControl | Cross-cutting concerns |
-| **Form** | ProfileSetup | Controlled form with validation |
-
-### Dashboard — The Orchestrator
-
-Dashboard is the **central state coordinator**. It:
-
-1. Loads profile from localStorage on mount
-2. Fetches weather data for the user's city
-3. Gathers sleep and activity logs for today
-4. Computes the dynamic daily goal
-5. Tracks intake and checks for new badge unlocks
-6. Passes computed values down to child components
-
-```
-Dashboard State:
-├── profile: UserProfile | null      ← localStorage
-├── weather: WeatherData | null      ← OpenWeatherMap API
-├── todayTotal: number               ← derived from logs
-├── todaySleep: SleepLog | null      ← localStorage
-├── todayActivities: ActivityLog[]   ← localStorage
-├── stats: HydrationStats | null     ← computed from all logs
-├── newBadge: Badge | null           ← delta from previous stats
-├── tip: string                      ← weather-dependent message
-└── goal: number                     ← calculateDailyGoal(...)
-```
+### Component Categories:
+1. **Container Orchestrator**: `Dashboard.tsx` listens to auth state changes, polls OpenWeatherMap, updates goals, aggregates intake logs, and dispatches data.
+2. **Interactive Handlers**: `QuickAdd.tsx`, `ProfileSetup.tsx`, and `Auth.tsx` validate form inputs and trigger database updates.
+3. **Data Visualizers**: `WaterProgress.tsx` uses custom SVG paths and spring parameters. `WeeklyChart.tsx` maps daily arrays using Recharts components.
+4. **Toast Alerts**: `BadgeUnlockToast.tsx` is mounted within `AnimatePresence` for dynamic entrance and exit animations.
 
 ---
 
-## 5. Data Flow Architecture
+## 4. Data Flow & Synchronization Layer
 
-### Unidirectional Data Flow
-
-```mermaid
-flowchart LR
-    A["User Action<br/>(tap, input)"] --> B["Event Handler<br/>(component)"]
-    B --> C["State Update<br/>(localStorage + setState)"]
-    C --> D["Re-render<br/>(React reconciliation)"]
-    D --> E["UI Update<br/>(visual feedback)"]
-    E --> A
-
-    style A fill:#0891b2,color:#fff
-    style E fill:#0891b2,color:#fff
-```
-
-### Data Flow for Water Intake
+HydroSmart utilizes **unidirectional data flows** to keep the application view in sync with storage layers.
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant QA as QuickAdd
-    participant LS as localStorage
-    participant D as Dashboard
-    participant G as gamification.ts
-    participant WP as WaterProgress
+    autonumber
+    participant User as User UI
+    participant Dash as Dashboard.tsx
+    participant DB as supabase.ts (db helper)
+    participant Cloud as Supabase Postgres
+    participant Cache as LocalStorage
 
-    U->>QA: Tap 250ml
-    QA->>LS: addIntakeLog(250)
-    QA->>D: onAdd() callback
-    D->>LS: getTodayLogs()
-    D->>D: setTodayTotal(sum)
-    D->>G: computeStats(allLogs, goal)
-    G-->>D: HydrationStats
-    D->>D: Check newlyUnlockedBadges
-    D->>WP: current={todayTotal} goal={goal}
-    WP->>U: Animated progress ring
-```
-
-### Cross-Component Communication
-
-```
-ProfileSetup ──(onComplete)──→ Dashboard ──(re-mount)──→ All Children
-SleepTracker ──(onUpdate)────→ Dashboard ──(recalc goal)→ WaterProgress
-ActivityTracker ──(onUpdate)─→ Dashboard ──(recalc goal)→ WaterProgress
-QuickAdd ──(onAdd)───────────→ Dashboard ──(refresh)────→ GamificationPanel
-```
-
----
-
-## 6. State Management
-
-### State Architecture
-
-HydroSmart uses a **lightweight state strategy** — no Redux or Zustand. State is managed at three levels:
-
-| Level | Mechanism | Data |
-|-------|-----------|------|
-| **Component** | `useState` | Form inputs, UI toggles, expanded/collapsed |
-| **Container** | `useState` + `useCallback` | Aggregated data, computed values |
-| **Persistent** | `localStorage` | Profiles, logs, settings |
-| **Server** | React Query | Weather API cache |
-
-### localStorage Schema
-
-```
-hydration_profile       → UserProfile (JSON)
-hydration_logs          → IntakeLog[] (JSON array)
-hydration_sleep_logs    → SleepLog[] (JSON array)
-hydration_activity_logs → ActivityLog[] (JSON array)
-hydration_notifications_enabled → "true" | "false"
-```
-
-### Why No Global State Library?
-
-- The app has a **single container** (Dashboard) that owns all shared state
-- No deeply nested prop drilling — max 2 levels deep
-- All cross-component communication goes through Dashboard callbacks
-- localStorage serves as the "source of truth" for persistence
-
----
-
-## 7. Business Logic Layer
-
-### Module Dependency Graph
-
-```mermaid
-graph LR
-    H["hydration.ts<br/>Core Engine"]
-    G["gamification.ts<br/>Badge System"]
-    W["weather.ts<br/>API Client"]
-    N["notifications.ts<br/>Reminders"]
-
-    G -->|imports IntakeLog| H
-    W -->|returns WeatherData| H
-
-    style H fill:#0891b2,color:#fff
-    style G fill:#0d9488,color:#fff
-    style W fill:#0284c7,color:#fff
-    style N fill:#7c3aed,color:#fff
-```
-
-### hydration.ts — Core Algorithm
-
-**Purpose**: Computes personalized daily hydration goal and manages intake data.
-
-**Key Functions**:
-
-| Function | Input | Output | Purity |
-|----------|-------|--------|--------|
-| `calculateDailyGoal()` | Profile, Weather, Sleep, Activities | `number` (ml) | ✅ Pure |
-| `getReminderInterval()` | Profile, goalMl | `number` (minutes) | ✅ Pure |
-| `getTemperatureLevel()` | temp | `"cool"\|"warm"\|"hot"\|"extreme"` | ✅ Pure |
-| `getHydrationTip()` | Weather | `string` | ❌ Random |
-| `addIntakeLog()` | amount | IntakeLog | ❌ Side effect (localStorage) |
-| `getTodayLogs()` | — | IntakeLog[] | ❌ Side effect (localStorage) |
-
-### gamification.ts — Badge Engine
-
-**Purpose**: Tracks streaks, milestones, and unlocks achievement badges.
-
-**Badge Evaluation**: All 14 badges are defined as condition functions against `HydrationStats`. On each intake, `computeStats()` rebuilds the full stats object and `getNewlyUnlockedBadges()` diffs against the previous snapshot.
-
-### weather.ts — API Client
-
-**Purpose**: Fetches real-time weather data via OpenWeatherMap (using API key).
-
-**Flow**: City name → OpenWeatherMap API → normalized `WeatherData`
-
-### notifications.ts — Reminder System
-
-**Purpose**: Manages browser push notification permissions, scheduling, and delivery.
-
-**Architecture**: Uses `setInterval` with configurable period. Notifications only fire when the document is hidden (tab backgrounded) and notifications are enabled.
-
----
-
-## 8. External Integrations
-
-### OpenWeatherMap API
-
-```mermaid
-sequenceDiagram
-    participant App as weather.ts
-    participant Weather as OpenWeatherMap API
-
-    App->>Weather: GET /weather?q={city}&appid={API_KEY}&units=metric
-    Weather-->>App: {main: {temp, humidity}, weather: [{description, icon}]}
-    App->>App: Normalize to WeatherData
-```
-
-**Why OpenWeatherMap?**
-- ✅ Direct query by city name (eliminates separate geocoding step)
-- ✅ Accurate global weather and humidity forecasts
-- ✅ Standard industry REST API integration
-- ✅ Built-in icon asset codes and descriptions
-- ✅ Structured response that maps neatly to UI cards
-
-### Browser Notifications API
-
-- Permission-based: requests `Notification.permission`
-- Graceful fallback: feature-detected with `"Notification" in window`
-- Uses `tag` property to prevent notification stacking
-
----
-
-## 9. UI Architecture & Design System
-
-### Design Token System
-
-All colors use HSL values defined as CSS custom properties in `index.css`:
-
-```
-:root
-├── --background: 195 30% 97%
-├── --foreground: 200 50% 10%
-├── --primary: 192 82% 45%        (Teal/Cyan — water theme)
-├── --accent: 168 70% 42%          (Green — success states)
-├── --water-light/medium/deep/glow (Water-specific palette)
-├── --success / --warning / --hot  (Semantic status colors)
-└── Dark mode overrides via .dark
-```
-
-### Responsive Breakpoint Strategy
-
-```
-Mobile-first approach:
-├── Base (0px)     → Single column, compact spacing, touch-optimized
-├── sm (640px)     → Slightly larger text, more padding
-├── md (768px)     → Two-column layouts where applicable
-└── lg (1024px)    → Max-width container, centered
-```
-
-### Animation Architecture
-
-Framer Motion is used for:
-- **Page transitions**: `initial → animate` on component mount
-- **Staggered lists**: `delay` prop for sequential reveal
-- **Expandable sections**: `AnimatePresence` for enter/exit
-- **Progress animations**: Spring physics on the SVG ring
-
----
-
-## 10. Error Handling Architecture
-
-```mermaid
-graph TD
-    A["Runtime Error"] --> B{"ErrorBoundary<br/>catches?"}
-    B -->|Yes| C["Fallback UI<br/>Try Again / Reload"]
-    B -->|No| D["Uncaught Error<br/>Browser handles"]
+    User->>Dash: Action (e.g., Click "+250ml" or Change Profile)
+    Dash->>DB: DB Request (addIntakeLog / saveProfile)
     
-    E["API Error<br/>(weather fetch)"] --> F["try/catch in<br/>loadWeather"]
-    F --> G["Fallback tip message<br/>Base recommendation used"]
-    
-    H["localStorage Error"] --> I["JSON.parse with<br/>default fallback"]
-    I --> J["Empty array/null<br/>App continues"]
-    
-    style C fill:#dc2626,color:#fff
-    style G fill:#f59e0b,color:#fff
-    style J fill:#22c55e,color:#fff
+    critical Evaluate Supabase Connectivity
+        DB->>DB: Check if Supabase Client is Configured & Online
+    option Yes (Cloud Sync)
+        DB->>Cloud: Execute Postgres Mutation
+        Cloud-->>DB: Confirm Transaction (Return DB model)
+        DB->>Cache: Mirror response into LocalStorage Cache
+    option No (Offline Fallback)
+        DB->>Cache: Write transaction directly to LocalStorage
+    end
+
+    DB-->>Dash: Return updated model
+    Dash->>Dash: Refresh state metrics (streaks, today total)
+    Dash->>User: Re-render UI views (spring animation, updated stats)
 ```
 
-### Error Handling Layers
+---
 
-| Layer | Strategy | Recovery |
-|-------|----------|----------|
-| **React Render** | ErrorBoundary class component | Reset state or reload page |
-| **API Calls** | try/catch in async functions | Fallback content, user message |
-| **Data Parsing** | Default values in JSON.parse | Empty arrays, null defaults |
-| **User Input** | Controlled inputs with validation | Prevent invalid submissions |
+## 5. State Management & Offline-First Strategy
+
+The application avoids complex state libraries like Redux or Zustand. State is managed using React hooks colocated at the container level, utilizing an **offline-first local mirror pattern**.
+
+| Layer | Implementation | Purpose / Managed Scope |
+| :--- | :--- | :--- |
+| **Volatile Client State** | `useState`, `useRef`, `useCallback` | Track active user session, loading masks, open modals, simulated weather states, and previous badge benchmarks. |
+| **Server Cache State** | React Query | Cache API calls to OpenWeatherMap, preventing unnecessary network queries. |
+| **Data Gateway** | `supabase.ts` | Abstract database operations and route data based on config flags. |
+| **Persistence Mirror** | `localStorage` | Backs up profiles, logs, and reminder data locally to ensure instant page loads and offline usability. |
 
 ---
 
-## 11. Performance Architecture
+## 6. Core Math & Logical Engines
 
-### Optimization Strategies
+The application's logic resides in `src/lib/` as type-safe TypeScript modules.
 
-| Strategy | Implementation |
-|----------|---------------|
-| **Memoization** | `useCallback` for event handlers in Dashboard |
-| **Lazy Loading** | Vite's automatic code splitting |
-| **Minimal Re-renders** | Callbacks avoid passing new function refs |
-| **Efficient DOM** | SVG-based progress ring (single element) |
-| **Bundle Size** | Tree-shaking via ES modules, Vite minification |
-| **Font Loading** | Google Fonts with `display=swap` |
+### A. Hydration Goal Calculation (`src/lib/hydration.ts`)
+Calculates the dynamic goal according to weight and real-time weather details:
+$$\text{Baseline} = \max(\text{weight} \times 35\,\text{ml}, 2500\,\text{ml})$$
+* **Temperature Adjustment**: Adds $25\,\text{ml}$ per degree above $25^\circ\text{C}$ up to $30^\circ\text{C}$, and $50\,\text{ml}$ per degree above $30^\circ\text{C}$.
+* **Humidity Adjustment**: Adds $300\,\text{ml}$ if relative humidity is below $30\%$, and $150\,\text{ml}$ if below $50\%$.
+* **Manual Override**: If `manualGoal` is configured in the profile, it overrides all other calculations.
+* **Rounding**: The final target is rounded to the nearest $50\,\text{ml}$ for clean tracking.
 
-### Build Output
+### B. Smart Reminder Intervals
+Determines the spacing between notifications based on current temperature:
+* Temp $< 20^\circ\text{C} \implies 120$ minutes (2-hour reminder)
+* Temp $20^\circ\text{C} \le \text{temp} \le 30^\circ\text{C} \implies 90$ minutes (1.5-hour reminder)
+* Temp $30^\circ\text{C} < \text{temp} \le 40^\circ\text{C} \implies 60$ minutes (1-hour reminder)
+* Temp $> 40^\circ\text{C} \implies 30$ minutes (30-minute reminder)
 
-Vite produces optimized chunks:
-- Vendor chunk: React, React DOM, Radix primitives
-- App chunk: Application code
-- CSS: Single minified stylesheet with Tailwind purge
-
----
-
-## 12. Security Considerations
-
-| Concern | Mitigation |
-|---------|-----------|
-| **XSS** | React's default escaping; no `dangerouslySetInnerHTML` |
-| **Data Privacy** | All data stored client-side in localStorage |
-| **API Keys** | OpenWeatherMap uses secure app key |
-| **Input Validation** | Controlled inputs with type constraints |
-| **HTTPS** | Enforced by deployment platform |
+### C. Streak & Achievement Logic (`src/lib/gamification.ts`)
+* **Consecutive Streaks**: Evaluates daily intake against target goals. If today has no logs yet, the streak count check is evaluated starting from yesterday to prevent resetting streaks prematurely.
+* **Consistency Score**: Evaluates tracking behavior over a rolling 7-day window.
 
 ---
 
-## 13. Scalability & Future Architecture
+## 7. External Integrations
 
-### Migration Path to Full-Stack
+### 1. OpenWeatherMap API
+Fetches local weather conditions by city name.
+* **Flow**: Request city name $\implies$ API returns JSON details $\implies$ Normalization maps weather codes to descriptive emojis (`☀️`, `⛅`, `🌧️`, `⛈️`, `❄️`, `🌫️`).
+* **Fallback**: Uses a deterministic mock generator in `src/lib/weather.ts` if the request fails, matching temperature and humidity profiles to regional characteristics.
+
+### 2. Browser Notifications API
+Triggers system push notifications during waking hours.
+* Requests permission explicitly via `Notification.requestPermission()`.
+* Schedules reminders based on the computed interval using `setInterval`.
+* Only fires when the browser window is backgrounded (`document.hidden === true`) to prevent spamming active users.
+* Uses the `tag: "hydration-reminder"` attribute to replace outdated notifications on screen.
+
+---
+
+## 8. Security Model & Row Level Security (RLS)
+
+Integrating Supabase shifts data security to the database level. Each table in the PostgreSQL database is configured with **Row Level Security (RLS)** to isolate user data.
+
+```sql
+-- Enable Row Level Security
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.intake_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reminder_logs ENABLE ROW LEVEL SECURITY;
+
+-- Security Policies
+CREATE POLICY "Users can manage their own profiles"
+  ON public.profiles FOR ALL USING (auth.uid() = id);
+
+CREATE POLICY "Users can manage their own intake logs"
+  ON public.intake_logs FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own reminder logs"
+  ON public.reminder_logs FOR ALL USING (auth.uid() = user_id);
+```
+
+Under these policies:
+* Users can only read and write data that matches their authenticated `auth.uid()`.
+* Direct access bypasses are blocked, ensuring secure data isolation.
+
+---
+
+## 9. Error Handling & Fault Tolerance
+
+HydroSmart uses layered error boundaries to prevent runtime exceptions from crashing the app:
 
 ```mermaid
-graph LR
-    A["Current<br/>Client-Only"] --> B["Phase 1<br/>+ Supabase Auth"]
-    B --> C["Phase 2<br/>+ PostgreSQL DB"]
-    C --> D["Phase 3<br/>+ Edge Functions"]
-    D --> E["Phase 4<br/>+ PWA Offline"]
-
-    style A fill:#0891b2,color:#fff
-    style E fill:#7c3aed,color:#fff
+flowchart TD
+    Error[Exception Detected] --> Type{Error Type}
+    
+    Type -->|Render Error| EB[ErrorBoundary.tsx Class Guard]
+    EB -->|Catch Exception| EBUI[Render Fallback Screen with Reload Trigger]
+    
+    Type -->|Network / DB Error| DBFail[supabase.ts try-catch]
+    DBFail -->|Fall back| LocalStore[Local Storage Fallback Mode]
+    LocalStore -->|Log warning| AppSync[Flag Offline Mode and Continue Operating]
+    
+    Type -->|Weather API Fail| WeatherFail[weather.ts catch block]
+    WeatherFail -->|Fetch Simulator| SimulateWeather[Generate deterministic city mock weather]
+    SimulateWeather --> GoalUpdate[Calculate Goal & Continue Operating]
 ```
 
-| Phase | Addition | Impact |
-|-------|----------|--------|
-| **Phase 1** | User authentication | Multi-device sync, account security |
-| **Phase 2** | Database persistence | Replace localStorage, enable analytics |
-| **Phase 3** | Server-side logic | AI recommendations, email reminders |
-| **Phase 4** | PWA with service worker | Offline tracking, home screen install |
+* **Storage Fallbacks**: Any database query caught in a `try/catch` block automatically redirects to local storage arrays to keep the app operational.
+* **Input Boundaries**: Controlled inputs validate form data before it is sent to database modules.
 
-### Current Limitations
+---
 
-- **No cross-device sync**: localStorage is browser-local
-- **No offline support**: Requires network for weather
-- **No data export**: Logs cannot be exported
-- **Single user**: No multi-profile support
+## 10. Design System & Typography Integration
 
-These limitations are addressed in the scalability roadmap and can be implemented by integrating a backend database (e.g. Supabase, Firebase, or a custom REST API).
+The user interface uses a custom HSL design system configured in `src/index.css` and `tailwind.config.ts`.
+
+### Theme Color Definitions:
+* **Backgrounds**: Slate tones (`--background`: `195 30% 97%`, `--foreground`: `200 50% 10%`) for a clean, professional aesthetic.
+* **Brand Primary**: Hydro Cyan (`--primary`: `192 82% 45%`) representing water.
+* **Accent Success**: Emerald Green (`--accent`: `168 70% 42%`) for achievements and completion.
+* **Glassmorphism Styling**: Backgrounds use `backdrop-blur-lg bg-white/40 border border-white/20 dark:bg-slate-900/40 dark:border-slate-800/20` to create a modern visual look.
+
+### Typography Hierarchy:
+* **Headings**: `Space Grotesk`, sans-serif (Weights: `600`, `700`) for structural elements.
+* **Body & Data**: `Plus Jakarta Sans`, sans-serif (Weights: `400`, `500`, `700`) for readability.
