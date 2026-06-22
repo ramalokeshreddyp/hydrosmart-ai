@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [offlineMode, setOfflineMode] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [todayTotal, setTodayTotal] = useState(0);
@@ -302,8 +303,16 @@ export default function Dashboard() {
     );
   }
 
-  if (!profile) {
-    return <ProfileSetup onComplete={handleProfileComplete} />;
+  if (!profile || isEditingProfile) {
+    return (
+      <ProfileSetup
+        initialProfile={profile}
+        onComplete={(p) => {
+          handleProfileComplete(p);
+          setIsEditingProfile(false);
+        }}
+      />
+    );
   }
 
   // Calculate effectiveness metrics
@@ -452,8 +461,7 @@ export default function Dashboard() {
             size="icon"
             className="rounded-full touch-target h-8 w-8"
             onClick={() => {
-              localStorage.removeItem("hydration_profile");
-              setProfile(null);
+              setIsEditingProfile(true);
             }}
             aria-label="Edit Profile"
             title="Edit Profile"

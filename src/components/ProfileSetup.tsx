@@ -7,26 +7,32 @@ import { Label } from "@/components/ui/label";
 import { saveProfile, type UserProfile } from "@/lib/hydration";
 
 interface ProfileSetupProps {
+  initialProfile?: UserProfile | null;
   onComplete: (profile: UserProfile) => void;
 }
 
-export function ProfileSetup({ onComplete }: ProfileSetupProps) {
-  const [form, setForm] = useState<UserProfile>({
-    name: "",
-    weight: 70,
-    age: 25,
-    gender: "other",
-    city: "",
-    wakeTime: "07:00",
-    sleepTime: "23:00",
-    workStart: "09:00",
-    workEnd: "17:00",
-    customInterval: 60,
-    weatherRemindersEnabled: true,
-    channels: ["in-app"],
-    email: "",
-    phone: "",
-    manualGoal: null,
+export function ProfileSetup({ initialProfile, onComplete }: ProfileSetupProps) {
+  const [form, setForm] = useState<UserProfile>(() => {
+    if (initialProfile) {
+      return { ...initialProfile };
+    }
+    return {
+      name: "",
+      weight: 70,
+      age: 25,
+      gender: "other",
+      city: "",
+      wakeTime: "07:00",
+      sleepTime: "23:00",
+      workStart: "09:00",
+      workEnd: "17:00",
+      customInterval: 60,
+      weatherRemindersEnabled: true,
+      channels: ["in-app"],
+      email: "",
+      phone: "",
+      manualGoal: null,
+    };
   });
 
   const [step, setStep] = useState(1);
@@ -210,14 +216,26 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 </div>
               </div>
 
-              <Button
-                type="button"
-                onClick={() => form.name && form.city && setStep(2)}
-                disabled={!form.name || !form.city}
-                className="w-full h-11 mt-4 font-semibold rounded-xl"
-              >
-                Next Step ➔
-              </Button>
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                {initialProfile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onComplete(initialProfile)}
+                    className="h-11 rounded-xl"
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={() => form.name && form.city && setStep(2)}
+                  disabled={!form.name || !form.city}
+                  className={`h-11 font-semibold rounded-xl ${initialProfile ? "" : "col-span-2"}`}
+                >
+                  Next Step ➔
+                </Button>
+              </div>
             </motion.div>
           )}
 
