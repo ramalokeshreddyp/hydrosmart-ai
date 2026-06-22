@@ -15,9 +15,12 @@ const mockProfile: UserProfile = {
   name: "Test User",
   weight: 70,
   age: 30,
+  gender: "other",
   city: "New York",
   wakeTime: "07:00",
   sleepTime: "23:00",
+  workStart: "09:00",
+  workEnd: "17:00",
   customInterval: 60,
   weatherRemindersEnabled: true,
   channels: ["in-app"],
@@ -44,6 +47,16 @@ describe("hydration.ts - Core Functions", () => {
       // 100kg * 35 = 3500ml => max(3500, 2500) = 3500ml
       const heavyProfile = { ...mockProfile, weight: 100 };
       expect(calculateDailyGoal(heavyProfile)).toBe(3500);
+    });
+
+    it("should calculate gender-based base goals correctly", () => {
+      // Male: weight * 40 => 70 * 40 = 2800ml => max(2800, 3000) = 3000ml
+      const maleProfile = { ...mockProfile, gender: "male" as const };
+      expect(calculateDailyGoal(maleProfile)).toBe(3000);
+
+      // Female: weight * 32 => 70 * 32 = 2240ml => max(2240, 2200) = 2250ml (rounded to 50)
+      const femaleProfile = { ...mockProfile, gender: "female" as const };
+      expect(calculateDailyGoal(femaleProfile)).toBe(2250);
     });
 
     it("should adjust goal for high temperatures", () => {

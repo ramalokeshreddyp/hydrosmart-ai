@@ -4,9 +4,12 @@ export interface UserProfile {
   name: string;
   weight: number; // kg
   age: number;
+  gender: "male" | "female" | "other";
   city: string;
   wakeTime: string; // "07:00"
   sleepTime: string; // "23:00"
+  workStart: string; // "09:00"
+  workEnd: string; // "17:00"
   customInterval: number; // minutes
   weatherRemindersEnabled: boolean;
   channels: ("in-app" | "email" | "whatsapp")[];
@@ -50,8 +53,15 @@ export function calculateDailyGoal(
     return profile.manualGoal;
   }
 
-  // Base: 35ml per kg body weight
-  let goal = Math.max(profile.weight * 35, BASE_INTAKE_ML);
+  // Base: adjust baseline according to gender and weight
+  let goal = BASE_INTAKE_ML;
+  if (profile.gender === "male") {
+    goal = Math.max(profile.weight * 40, 3000);
+  } else if (profile.gender === "female") {
+    goal = Math.max(profile.weight * 32, 2200);
+  } else {
+    goal = Math.max(profile.weight * 35, BASE_INTAKE_ML);
+  }
 
   if (weather) {
     // Temperature factor

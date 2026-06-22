@@ -15,9 +15,12 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
     name: "",
     weight: 70,
     age: 25,
+    gender: "other",
     city: "",
     wakeTime: "07:00",
     sleepTime: "23:00",
+    workStart: "09:00",
+    workEnd: "17:00",
     customInterval: 60,
     weatherRemindersEnabled: true,
     channels: ["in-app"],
@@ -125,6 +128,26 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               </div>
 
               <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm font-medium">Gender</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["male", "female", "other"] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setForm({ ...form, gender: g })}
+                      className={`h-10 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                        form.gender === g
+                          ? "border-primary bg-primary/10 text-primary font-bold"
+                          : "border-border/50 hover:border-primary/20"
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
                   <MapPin className="w-3.5 h-3.5 text-primary" /> City for Weather Scaling
                 </Label>
@@ -137,7 +160,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1.5">
                   <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
                     <Clock className="w-3.5 h-3.5 text-primary" /> Wake Up
@@ -157,6 +180,31 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                     type="time"
                     value={form.sleepTime}
                     onChange={(e) => setForm({ ...form, sleepTime: e.target.value })}
+                    className="h-10 sm:h-11"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+                    <Clock className="w-3.5 h-3.5 text-primary" /> Work Start
+                  </Label>
+                  <Input
+                    type="time"
+                    value={form.workStart}
+                    onChange={(e) => setForm({ ...form, workStart: e.target.value })}
+                    className="h-10 sm:h-11"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Work End
+                  </Label>
+                  <Input
+                    type="time"
+                    value={form.workEnd}
+                    onChange={(e) => setForm({ ...form, workEnd: e.target.value })}
                     className="h-10 sm:h-11"
                   />
                 </div>
