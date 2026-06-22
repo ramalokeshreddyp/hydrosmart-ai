@@ -1,5 +1,3 @@
-export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "intense";
-
 export interface UserProfile {
   name: string;
   weight: number; // kg
@@ -7,7 +5,12 @@ export interface UserProfile {
   city: string;
   wakeTime: string; // "07:00"
   sleepTime: string; // "23:00"
-  activityLevel: ActivityLevel;
+  customInterval: number; // minutes
+  weatherRemindersEnabled: boolean;
+  channels: ("in-app" | "email" | "whatsapp")[];
+  email: string;
+  phone: string;
+  manualGoal: number | null; // ml
 }
 
 export interface WeatherData {
@@ -24,55 +27,29 @@ export interface IntakeLog {
   timestamp: string; // ISO
 }
 
-export interface SleepLog {
+export interface ReminderLog {
   id: string;
-  date: string; // YYYY-MM-DD
-  hours: number;
-  quality: "poor" | "fair" | "good" | "excellent";
-}
-
-export interface ActivityLog {
-  id: string;
-  type: string;
-  durationMin: number;
-  intensity: "light" | "moderate" | "vigorous";
   timestamp: string; // ISO
+  temp: number;
+  city: string;
+  intervalMinutes: number;
+  channels: ("in-app" | "email" | "whatsapp")[];
+  action: "logged" | "snoozed" | "dismissed" | "pending";
+  amountLogged?: number;
 }
 
 const BASE_INTAKE_ML = 2500;
 
-const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
-  sedentary: 1.0,
-  light: 1.1,
-  moderate: 1.2,
-  active: 1.35,
-  intense: 1.5,
-};
-
-const ACTIVITY_EXERCISE_ML: Record<string, number> = {
-  light: 200,
-  moderate: 400,
-  vigorous: 600,
-};
-
-const SLEEP_QUALITY_ML: Record<string, number> = {
-  poor: 300,
-  fair: 150,
-  good: 0,
-  excellent: -100,
-};
-
 export function calculateDailyGoal(
   profile: UserProfile,
-  weather?: WeatherData,
-  todaySleep?: SleepLog | null,
-  todayActivities?: ActivityLog[]
+  weather?: WeatherData
 ): number {
+  if (profile.manualGoal) {
+    return profile.manualGoal;
+  }
+
   // Base: 35ml per kg body weight
   let goal = Math.max(profile.weight * 35, BASE_INTAKE_ML);
-
-  // Activity level from profile
-  goal *= ACTIVITY_MULTIPLIER[profile.activityLevel] || 1.0;
 
   if (weather) {
     // Temperature factor
@@ -90,30 +67,19 @@ export function calculateDailyGoal(
     }
   }
 
-  // Sleep quality adjustment — poor sleep = more hydration needed
-  if (todaySleep) {
-    goal += SLEEP_QUALITY_ML[todaySleep.quality] || 0;
-    // Short sleep (<6h) adds extra
-    if (todaySleep.hours < 6) goal += 200;
-  }
-
-  // Exercise adjustments for today
-  if (todayActivities && todayActivities.length > 0) {
-    for (const act of todayActivities) {
-      const perSession = ACTIVITY_EXERCISE_ML[act.intensity] || 200;
-      goal += Math.round(perSession * (act.durationMin / 30));
-    }
-  }
-
   return Math.round(goal / 50) * 50;
 }
 
-export function getReminderInterval(profile: UserProfile, goalMl: number): number {
-  const [wH, wM] = profile.wakeTime.split(":").map(Number);
-  const [sH, sM] = profile.sleepTime.split(":").map(Number);
-  const awakeMinutes = (sH * 60 + sM) - (wH * 60 + wM);
-  const glasses = Math.ceil(goalMl / 250); // 250ml per glass
-  return Math.floor(awakeMinutes / glasses); // minutes between reminders
+export function getReminderInterval(profile: UserProfile, weather?: WeatherData): number {
+  if (!profile.weatherRemindersEnabled || !weather) {
+    return profile.customInterval;
+  }
+
+  const temp = weather.temp;
+  if (temp < 25) return 90;
+  if (temp <= 35) return 60;
+  if (temp <= 40) return 45;
+  return 30; // > 40°C
 }
 
 export function getTemperatureLevel(temp: number): "cool" | "warm" | "hot" | "extreme" {
@@ -127,21 +93,20 @@ export function getHydrationTip(weather?: WeatherData): string {
   if (!weather) return "Stay hydrated throughout the day! 💧";
   const tips: Record<string, string[]> = {
     cool: [
-      "Cool weather — don't forget to hydrate even when it's not hot!",
-      "Your body still loses water in cooler temps. Keep sipping!",
+      "It is comfortable outside. Keep a steady intake of water at your desk.",
+      "Cooler weather reduces thirst, but your body still needs regular hydration.",
     ],
     warm: [
-      "Pleasant weather — maintain steady water intake.",
-      "Good weather for a walk! Bring your water bottle.",
+      "Warm day! Keep a water bottle nearby while working.",
+      "Active hours call for regular sips. Stay refreshed!",
     ],
     hot: [
-      "It's hot outside! Increase your water intake significantly.",
-      "High temperature alert — drink water before you feel thirsty!",
-      "Consider adding electrolytes to your water today.",
+      "The temperature is rising! Drink an extra glass of water every few hours.",
+      "High temperature alert — hydrate regularly to stay focused and avoid fatigue.",
     ],
     extreme: [
-      "⚠️ Extreme heat! Drink water every 15-20 minutes.",
-      "🔴 Dangerous heat — stay cool and hydrate constantly!",
+      "⚠️ Extreme heat! It is crucial to drink water every 15-20 minutes.",
+      "🔴 Heat warning — stay indoors, keep cool, and prioritize hydration!",
     ],
   };
   const level = getTemperatureLevel(weather.temp);
@@ -167,20 +132,26 @@ export function addIntakeLog(amount: number): IntakeLog {
   return log;
 }
 
-export function getWeeklyData(): { day: string; intake: number }[] {
+export function getIntakeHistory(daysCount: number): { day: string; intake: number; dateStr: string }[] {
   const all: IntakeLog[] = JSON.parse(localStorage.getItem("hydration_logs") || "[]");
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
+  const history = [];
+  for (let i = daysCount - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toISOString().split("T")[0];
-    const label = d.toLocaleDateString("en", { weekday: "short" });
+    const label = daysCount <= 7 
+      ? d.toLocaleDateString("en", { weekday: "short" }) 
+      : d.toLocaleDateString("en", { day: "2-digit", month: "short" });
     const intake = all
       .filter(l => l.timestamp.startsWith(key))
       .reduce((s, l) => s + l.amount, 0);
-    days.push({ day: label, intake });
+    history.push({ day: label, intake, dateStr: key });
   }
-  return days;
+  return history;
+}
+
+export function getWeeklyData(): { day: string; intake: number }[] {
+  return getIntakeHistory(7);
 }
 
 export function getProfile(): UserProfile | null {
@@ -192,36 +163,45 @@ export function saveProfile(profile: UserProfile) {
   localStorage.setItem("hydration_profile", JSON.stringify(profile));
 }
 
-const SLEEP_KEY = "hydration_sleep_logs";
-const ACTIVITY_KEY = "hydration_activity_logs";
-
-export function getTodaySleepLog(): SleepLog | null {
-  const today = new Date().toISOString().split("T")[0];
-  const all: SleepLog[] = JSON.parse(localStorage.getItem(SLEEP_KEY) || "[]");
-  return all.find((l) => l.date === today) || null;
+export function getReminderLogs(): ReminderLog[] {
+  return JSON.parse(localStorage.getItem("hydration_reminder_logs") || "[]");
 }
 
-export function saveSleepLog(log: SleepLog) {
-  const all: SleepLog[] = JSON.parse(localStorage.getItem(SLEEP_KEY) || "[]");
-  const idx = all.findIndex((l) => l.date === log.date);
+export function saveReminderLog(log: ReminderLog) {
+  const all = getReminderLogs();
+  const idx = all.findIndex(l => l.id === log.id);
   if (idx >= 0) all[idx] = log;
   else all.push(log);
-  localStorage.setItem(SLEEP_KEY, JSON.stringify(all));
+  localStorage.setItem("hydration_reminder_logs", JSON.stringify(all));
 }
 
-export function getTodayActivities(): ActivityLog[] {
-  const today = new Date().toISOString().split("T")[0];
-  const all: ActivityLog[] = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || "[]");
-  return all.filter((l) => l.timestamp.startsWith(today));
-}
+export function getHydrationScore(): number {
+  const logs = getTodayLogs();
+  const profile = getProfile();
+  if (!profile) return 0;
 
-export function saveActivity(log: ActivityLog) {
-  const all: ActivityLog[] = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || "[]");
-  all.push(log);
-  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(all));
-}
+  // 1. Goal Met Score (up to 50 pts)
+  const goal = calculateDailyGoal(profile, undefined);
+  const currentIntake = logs.reduce((s, l) => s + l.amount, 0);
+  const goalPercentage = Math.min((currentIntake / goal) * 100, 100);
+  const goalScore = (goalPercentage / 100) * 50;
 
-export function removeActivity(id: string) {
-  const all: ActivityLog[] = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || "[]");
-  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(all.filter((l) => l.id !== id)));
+  // 2. Reminder Response Rate Score (up to 30 pts)
+  const reminderLogs = getReminderLogs();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayReminders = reminderLogs.filter(l => new Date(l.timestamp) >= todayStart);
+
+  let responseScore = 30; // default full marks if no reminders fired today
+  if (todayReminders.length > 0) {
+    const activeResponses = todayReminders.filter(l => l.action === "logged").length;
+    responseScore = (activeResponses / todayReminders.length) * 30;
+  }
+
+  // 3. Consistency Score (up to 20 pts)
+  const weeklyData = getIntakeHistory(7);
+  const activeDays = weeklyData.filter(d => d.intake >= goal).length;
+  const consistencyScore = (activeDays / 7) * 20;
+
+  return Math.round(goalScore + responseScore + consistencyScore);
 }
