@@ -2,21 +2,22 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, GlassWater } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { addIntakeLog } from "@/lib/hydration";
+import { db } from "@/lib/supabase";
 
 const quickAmounts = [150, 250, 350, 500];
 
 interface QuickAddProps {
+  userId: string;
   onAdd: () => void;
 }
 
-export function QuickAdd({ onAdd }: QuickAddProps) {
+export function QuickAdd({ userId, onAdd }: QuickAddProps) {
   const [showRipple, setShowRipple] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
 
-  const handleAdd = (amount: number) => {
-    addIntakeLog(amount);
+  const handleAdd = async (amount: number) => {
+    await db.addIntakeLog(userId, amount);
     setShowRipple(true);
     setTimeout(() => setShowRipple(false), 600);
     onAdd();

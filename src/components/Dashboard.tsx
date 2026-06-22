@@ -13,6 +13,7 @@ import {
   Bell,
   Check,
   TrendingUp,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfileSetup } from "@/components/ProfileSetup";
@@ -23,15 +24,13 @@ import { WeeklyChart } from "@/components/WeeklyChart";
 import { ReminderControl } from "@/components/ReminderControl";
 import { GamificationPanel } from "@/components/GamificationPanel";
 import { BadgeUnlockToast } from "@/components/BadgeUnlockToast";
+import { Auth } from "@/components/Auth";
+import { supabase, db } from "@/lib/supabase";
+import { getLocalDateString } from "@/lib/utils";
 import {
-  getProfile,
-  getTodayLogs,
   calculateDailyGoal,
   getReminderInterval,
   getHydrationTip,
-  getReminderLogs,
-  saveReminderLog,
-  getHydrationScore,
   type UserProfile,
   type WeatherData,
   type ReminderLog,
@@ -48,7 +47,11 @@ const weatherPresets: { name: string; temp: number; humidity: number; desc: stri
 ];
 
 export default function Dashboard() {
-  const [profile, setProfile] = useState<UserProfile | null>(getProfile());
+  const [session, setSession] = useState<{ user: { id: string; email?: string } } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [todayTotal, setTodayTotal] = useState(0);
@@ -75,11 +78,50 @@ export default function Dashboard() {
     ? getReminderInterval(profile, activeWeather ?? undefined)
     : 60;
 
-  const refreshToday = useCallback((goalMl: number) => {
-    const logs = getTodayLogs();
+  // Supabase auth listener
+  useEffect(() => {
+    if (!supabase) {
+      setAuthChecked(true);
+      setOfflineMode(true);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthChecked(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        setOfflineMode(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load Profile from DB or fallback
+  useEffect(() => {
+    const loadProfile = async () => {
+      const userId = session?.user?.id || "offline";
+      if (offlineMode || userId === "offline") {
+        const local = localStorage.getItem("hydration_profile");
+        setProfile(local ? JSON.parse(local) : null);
+      } else {
+        const p = await db.getProfile(userId);
+        setProfile(p);
+      }
+    };
+    loadProfile();
+  }, [session, offlineMode]);
+
+  const refreshToday = useCallback(async (goalMl: number) => {
+    const userId = session?.user?.id || "offline";
+    const logs = await db.getTodayLogs(userId);
     setTodayTotal(logs.reduce((s, l) => s + l.amount, 0));
 
-    const allLogs = JSON.parse(localStorage.getItem("hydration_logs") || "[]");
+    const allLogs = await db.getAllLogs(userId);
     const newStats = computeStats(allLogs, goalMl);
 
     const newlyUnlocked = getNewlyUnlockedBadges(prevStatsRef.current, newStats);
@@ -89,9 +131,39 @@ export default function Dashboard() {
 
     prevStatsRef.current = newStats;
     setStats(newStats);
-    setReminderLogs(getReminderLogs());
-    setHydrationScore(getHydrationScore());
-  }, []);
+    
+    const rLogs = await db.getReminderLogs(userId);
+    setReminderLogs(rLogs);
+
+    // Calculate score
+    const currentIntake = logs.reduce((s, l) => s + l.amount, 0);
+    const goalPercentage = Math.min((currentIntake / goalMl) * 100, 100);
+    const goalScore = (goalPercentage / 100) * 50;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayReminders = rLogs.filter(l => new Date(l.timestamp) >= todayStart);
+    let responseScore = 30;
+    if (todayReminders.length > 0) {
+      const activeResponses = todayReminders.filter(l => l.action === "logged").length;
+      responseScore = (activeResponses / todayReminders.length) * 30;
+    }
+
+    const historyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = getLocalDateString(d);
+      const intake = allLogs
+        .filter(l => getLocalDateString(new Date(l.timestamp)) === key)
+        .reduce((s, l) => s + l.amount, 0);
+      historyData.push(intake);
+    }
+    const activeDays = historyData.filter(intake => intake >= goalMl).length;
+    const consistencyScore = (activeDays / 7) * 20;
+
+    setHydrationScore(Math.round(goalScore + responseScore + consistencyScore));
+  }, [session]);
 
   const loadWeather = useCallback(async (city: string) => {
     setLoading(true);
@@ -111,13 +183,16 @@ export default function Dashboard() {
     if (profile && isNotificationsEnabledLocal()) {
       startReminderScheduler(profile, activeWeather, (log) => {
         setActiveReminder(log);
-        setReminderLogs(getReminderLogs());
+        const userId = session?.user?.id || "offline";
+        db.saveReminderLog(userId, log).then(() => {
+          db.getReminderLogs(userId).then(setReminderLogs);
+        });
       });
     } else {
       stopReminderScheduler();
     }
     return () => stopReminderScheduler();
-  }, [profile, activeWeather]);
+  }, [profile, activeWeather, session]);
 
   function isNotificationsEnabledLocal(): boolean {
     return localStorage.getItem("hydration_notifications_enabled") === "true";
@@ -140,13 +215,16 @@ export default function Dashboard() {
 
   const handleTestTrigger = () => {
     if (!profile) return;
-    const log = triggerReminder(profile, activeWeather, (newLog) => {
+    const userId = session?.user?.id || "offline";
+    triggerReminder(profile, activeWeather, (newLog) => {
       setActiveReminder(newLog);
+      db.saveReminderLog(userId, newLog).then(() => {
+        db.getReminderLogs(userId).then(setReminderLogs);
+      });
     });
-    setReminderLogs(getReminderLogs());
   };
 
-  const handleReminderAction = (action: "logged" | "snoozed" | "dismissed", amountMl?: number) => {
+  const handleReminderAction = async (action: "logged" | "snoozed" | "dismissed", amountMl?: number) => {
     if (!activeReminder) return;
 
     const updatedLog: ReminderLog = {
@@ -155,30 +233,24 @@ export default function Dashboard() {
       amountLogged: amountMl,
     };
 
-    saveReminderLog(updatedLog);
+    const userId = session?.user?.id || "offline";
+    await db.saveReminderLog(userId, updatedLog);
 
     if (action === "logged" && amountMl) {
-      // Add intake log
-      const all: IntakeLog[] = JSON.parse(localStorage.getItem("hydration_logs") || "[]");
-      all.push({
-        id: crypto.randomUUID(),
-        amount: amountMl,
-        timestamp: new Date().toISOString(),
-      });
-      localStorage.setItem("hydration_logs", JSON.stringify(all));
-      refreshToday(goal);
+      await db.addIntakeLog(userId, amountMl);
     }
 
     setActiveReminder(null);
-    setReminderLogs(getReminderLogs());
-    setHydrationScore(getHydrationScore());
+    await refreshToday(goal);
 
     if (action === "snoozed") {
-      // Snooze simulated alert in 10 seconds for testing demo
       setTimeout(() => {
         if (profile) {
           triggerReminder(profile, activeWeather, (snoozedLog) => {
             setActiveReminder(snoozedLog);
+            db.saveReminderLog(userId, snoozedLog).then(() => {
+              db.getReminderLogs(userId).then(setReminderLogs);
+            });
           });
         }
       }, 10000);
@@ -197,8 +269,35 @@ export default function Dashboard() {
     setSimulatedWeather(mocked);
   };
 
+  const handleProfileComplete = async (p: UserProfile) => {
+    const userId = session?.user?.id || "offline";
+    await db.saveProfile(userId, p);
+    setProfile(p);
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session && !offlineMode && supabase) {
+    return (
+      <Auth
+        onSuccess={(userId) => {
+          setOfflineMode(false);
+        }}
+        onOffline={() => {
+          setOfflineMode(true);
+        }}
+      />
+    );
+  }
+
   if (!profile) {
-    return <ProfileSetup onComplete={(p) => setProfile(p)} />;
+    return <ProfileSetup onComplete={handleProfileComplete} />;
   }
 
   // Calculate effectiveness metrics
@@ -350,10 +449,27 @@ export default function Dashboard() {
               localStorage.removeItem("hydration_profile");
               setProfile(null);
             }}
-            aria-label="Settings"
+            aria-label="Edit Profile"
+            title="Edit Profile"
           >
             <Settings className="w-4 h-4" />
           </Button>
+          {supabase && session && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full touch-target h-8 w-8 text-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                setProfile(null);
+                setSession(null);
+              }}
+              aria-label="Sign Out"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </motion.header>
 
@@ -403,7 +519,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Quick Add Water */}
-        <QuickAdd onAdd={() => refreshToday(goal)} />
+        <QuickAdd userId={session?.user?.id || "offline"} onAdd={() => refreshToday(goal)} />
 
         {/* Reminder Controller Card */}
         <ReminderControl
