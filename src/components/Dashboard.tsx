@@ -198,19 +198,25 @@ export default function Dashboard() {
     return localStorage.getItem("hydration_notifications_enabled") === "true";
   }
 
+  // Load weather when profile city changes
+  useEffect(() => {
+    if (profile?.city && !simulatedWeather) {
+      loadWeather(profile.city);
+    }
+  }, [profile?.city, simulatedWeather, loadWeather]);
+
+  // Set tip when active weather changes
+  useEffect(() => {
+    if (activeWeather) {
+      setTip(getHydrationTip(activeWeather));
+    }
+  }, [activeWeather]);
+
+  // Refresh stats when profile or goal changes
   useEffect(() => {
     if (profile) {
       refreshToday(goal);
-      if (!simulatedWeather) {
-        loadWeather(profile.city);
-      } else {
-        setTip(getHydrationTip(simulatedWeather));
-      }
     }
-  }, [profile, activeWeather, simulatedWeather, loadWeather, goal, refreshToday]);
-
-  useEffect(() => {
-    if (profile) refreshToday(goal);
   }, [profile, goal, refreshToday]);
 
   const handleTestTrigger = () => {
