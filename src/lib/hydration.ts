@@ -1,3 +1,5 @@
+import { getLocalDateString } from "./utils";
+
 export interface UserProfile {
   name: string;
   weight: number; // kg
@@ -115,9 +117,9 @@ export function getHydrationTip(weather?: WeatherData): string {
 }
 
 export function getTodayLogs(): IntakeLog[] {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const all: IntakeLog[] = JSON.parse(localStorage.getItem("hydration_logs") || "[]");
-  return all.filter(l => l.timestamp.startsWith(today));
+  return all.filter(l => getLocalDateString(new Date(l.timestamp)) === today);
 }
 
 export function addIntakeLog(amount: number): IntakeLog {
@@ -138,12 +140,12 @@ export function getIntakeHistory(daysCount: number): { day: string; intake: numb
   for (let i = daysCount - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
+    const key = getLocalDateString(d);
     const label = daysCount <= 7 
       ? d.toLocaleDateString("en", { weekday: "short" }) 
       : d.toLocaleDateString("en", { day: "2-digit", month: "short" });
     const intake = all
-      .filter(l => l.timestamp.startsWith(key))
+      .filter(l => getLocalDateString(new Date(l.timestamp)) === key)
       .reduce((s, l) => s + l.amount, 0);
     history.push({ day: label, intake, dateStr: key });
   }

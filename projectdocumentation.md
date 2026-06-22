@@ -120,8 +120,7 @@ graph TB
     end
     
     subgraph External["External Services"]
-        OMG["Open-Meteo Geocoding"]
-        OMW["Open-Meteo Weather"]
+        OWM["OpenWeatherMap API"]
         BNA["Browser Notification API"]
         LST["Browser localStorage"]
     end
@@ -664,30 +663,28 @@ flowchart TD
 
 ## 11. Integration Details
 
-### Open-Meteo API Integration
+### OpenWeatherMap API Integration
 
 **Endpoints Used**:
 
 | Endpoint | Purpose | Parameters |
 |----------|---------|-----------|
-| `geocoding-api.open-meteo.com/v1/search` | City → coordinates | `name`, `count=1` |
-| `api.open-meteo.com/v1/forecast` | Current weather | `latitude`, `longitude`, `current=temperature_2m,relative_humidity_2m,weather_code` |
+| `api.openweathermap.org/data/2.5/weather` | Fetch current weather by city name | `q={city}`, `appid={API_KEY}`, `units=metric` |
 
 **Error Handling**:
-- City not found → throws Error("City not found")
-- Network failure → caught in Dashboard, shows fallback tip
-- Invalid response → handled by optional chaining
+- OpenWeatherMap API error / Network failure → caught in Dashboard, falls back to deterministic mock weather and updates tips.
+- Invalid response → handled with safety try/catch and optional chaining.
 
-**Weather Code Mapping**:
+**Weather Icon/Emoji Mapping**:
 
-| Code Range | Description | Icon |
+| Icon Code Prefix | Description | Icon |
 |-----------|-------------|------|
-| 0 | Clear sky | ☀️ |
-| 1–3 | Partly cloudy | ⛅ |
-| 4–49 | Foggy | 🌫️ |
-| 50–69 | Rainy | 🌧️ |
-| 70–79 | Snowy | ❄️ |
-| 80–99 | Thunderstorm | ⛈️ |
+| 01 | Clear sky | ☀️ |
+| 02, 03, 04 | Clouds | ⛅ |
+| 09, 10 | Rain | 🌧️ |
+| 11 | Thunderstorm | ⛈️ |
+| 13 | Snow | ❄️ |
+| 50 | Mist/Fog | 🌫️ |
 
 ### Browser Notification API Integration
 
@@ -778,7 +775,7 @@ npm run preview
 
 - No server needed — purely static files
 - No environment variables required
-- No API keys needed (Open-Meteo is free/keyless)
+- Requires OpenWeatherMap API key (using fallback simulation on error)
 - HTTPS recommended for Notification API
 
 ---
@@ -790,7 +787,7 @@ npm run preview
 | Advantage | Details |
 |-----------|---------|
 | **No backend required** | Runs entirely in the browser, zero hosting costs |
-| **No API keys** | Open-Meteo is free and keyless |
+| **API Fallback** | Automatic fallback simulation if API is rate-limited |
 | **Instant setup** | No registration, no email, no OAuth |
 | **Privacy-first** | All data stays on user's device |
 | **Fast** | Vite + React = sub-second loads |
@@ -817,7 +814,7 @@ npm run preview
 |----------|------------|-----------|
 | localStorage vs IndexedDB | IndexedDB is more powerful | localStorage is simpler, sufficient for current data volume |
 | No state library | Redux, Zustand | Single container component, no deep prop drilling |
-| Open-Meteo vs OpenWeatherMap | OWM has more features | Open-Meteo is free with no API key |
+| Open-Meteo vs OpenWeatherMap | OpenWeatherMap was selected for city-based queries | Simplified request architecture (no separate geocoding) |
 | Framer Motion vs CSS animations | CSS is lighter | Framer Motion provides spring physics and AnimatePresence |
 | shadcn/ui vs Material UI | MUI is more complete | shadcn/ui is lighter, more customizable, Tailwind-native |
 

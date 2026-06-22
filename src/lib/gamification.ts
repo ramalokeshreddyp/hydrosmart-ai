@@ -1,4 +1,5 @@
 import type { IntakeLog } from "./hydration";
+import { getLocalDateString } from "./utils";
 
 export interface Badge {
   id: string;
@@ -44,12 +45,12 @@ const ALL_BADGES: Badge[] = [
 const tierOrder = { bronze: 0, silver: 1, gold: 2, diamond: 3 };
 
 export function computeStats(logs: IntakeLog[], goalMl: number): HydrationStats {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
 
   // Group logs by day
   const byDay = new Map<string, number>();
   for (const log of logs) {
-    const day = log.timestamp.split("T")[0];
+    const day = getLocalDateString(new Date(log.timestamp));
     byDay.set(day, (byDay.get(day) || 0) + log.amount);
   }
 
@@ -72,7 +73,7 @@ export function computeStats(logs: IntakeLog[], goalMl: number): HydrationStats 
     d.setDate(d.getDate() - 1);
   }
   for (let i = 0; i < 365; i++) {
-    const key = d.toISOString().split("T")[0];
+    const key = getLocalDateString(d);
     const dayMl = byDay.get(key) || 0;
     if (dayMl >= goalMl) {
       currentStreak++;

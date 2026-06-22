@@ -76,7 +76,7 @@ graph TB
     subgraph Data["Data Layer"]
         direction LR
         LS["localStorage<br/>Profiles, Logs, Settings"]
-        API["Open-Meteo<br/>Weather API"]
+        API["OpenWeatherMap<br/>Weather API"]
         BrowserAPI["Browser APIs<br/>Notifications, Crypto"]
     end
 
@@ -94,7 +94,7 @@ graph TB
 |-------|-------|---------------|
 | **Presentation** | `components/`, `pages/` | Rendering, user interaction, animation |
 | **Business Logic** | `lib/` | Algorithms, data transformation, API calls |
-| **Data** | localStorage, Open-Meteo | Persistence, external data sources |
+| **Data** | localStorage, OpenWeatherMap | Persistence, external data sources |
 
 ---
 
@@ -150,7 +150,7 @@ Dashboard is the **central state coordinator**. It:
 ```
 Dashboard State:
 ├── profile: UserProfile | null      ← localStorage
-├── weather: WeatherData | null      ← Open-Meteo API
+├── weather: WeatherData | null      ← OpenWeatherMap API
 ├── todayTotal: number               ← derived from logs
 ├── todaySleep: SleepLog | null      ← localStorage
 ├── todayActivities: ActivityLog[]   ← localStorage
@@ -287,9 +287,9 @@ graph LR
 
 ### weather.ts — API Client
 
-**Purpose**: Fetches real-time weather data via Open-Meteo (free, no API key).
+**Purpose**: Fetches real-time weather data via OpenWeatherMap (using API key).
 
-**Flow**: City name → Geocoding API → lat/lng → Weather API → normalized `WeatherData`
+**Flow**: City name → OpenWeatherMap API → normalized `WeatherData`
 
 ### notifications.ts — Reminder System
 
@@ -301,27 +301,24 @@ graph LR
 
 ## 8. External Integrations
 
-### Open-Meteo Weather API
+### OpenWeatherMap API
 
 ```mermaid
 sequenceDiagram
     participant App as weather.ts
-    participant Geo as Geocoding API
-    participant Weather as Weather API
+    participant Weather as OpenWeatherMap API
 
-    App->>Geo: GET /v1/search?name={city}
-    Geo-->>App: {latitude, longitude, name}
-    App->>Weather: GET /v1/forecast?lat={}&lng={}&current=temp,humidity,code
-    Weather-->>App: {current: {temperature_2m, relative_humidity_2m, weather_code}}
+    App->>Weather: GET /weather?q={city}&appid={API_KEY}&units=metric
+    Weather-->>App: {main: {temp, humidity}, weather: [{description, icon}]}
     App->>App: Normalize to WeatherData
 ```
 
-**Why Open-Meteo?**
-- ✅ Free, no API key required
-- ✅ No rate limiting for personal use
-- ✅ Accurate global coverage
-- ✅ Simple REST interface
-- ✅ Returns weather codes → mapped to descriptions/icons
+**Why OpenWeatherMap?**
+- ✅ Direct query by city name (eliminates separate geocoding step)
+- ✅ Accurate global weather and humidity forecasts
+- ✅ Standard industry REST API integration
+- ✅ Built-in icon asset codes and descriptions
+- ✅ Structured response that maps neatly to UI cards
 
 ### Browser Notifications API
 
@@ -426,7 +423,7 @@ Vite produces optimized chunks:
 |---------|-----------|
 | **XSS** | React's default escaping; no `dangerouslySetInnerHTML` |
 | **Data Privacy** | All data stored client-side in localStorage |
-| **API Keys** | Open-Meteo requires no API key |
+| **API Keys** | OpenWeatherMap uses secure app key |
 | **Input Validation** | Controlled inputs with type constraints |
 | **HTTPS** | Enforced by deployment platform |
 

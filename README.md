@@ -42,7 +42,7 @@
 
 | Factor | Impact |
 |--------|--------|
-| 🌡️ **Real-time weather** | Temperature & humidity via Open-Meteo API |
+| 🌡️ **Real-time weather** | Temperature & humidity via OpenWeatherMap API |
 | 🏋️ **Exercise intensity** | Light/Moderate/Vigorous → +200–600ml per session |
 | 😴 **Sleep quality** | Poor sleep → +300ml; Short sleep (<6h) → +200ml |
 | ⚖️ **Body metrics** | 35ml per kg body weight baseline |
@@ -82,7 +82,7 @@
 | **UI Components** | shadcn/ui + Radix | Accessible, headless primitives |
 | **Routing** | React Router 6 | Client-side navigation |
 | **State** | React Query + localStorage | Server state + persistence |
-| **Weather API** | Open-Meteo | Free, no-key weather data |
+| **Weather API** | OpenWeatherMap | Global weather and humidity data |
 | **Testing** | Vitest + Playwright | Unit & E2E testing |
 | **Fonts** | Plus Jakarta Sans + Space Grotesk | Modern typography pair |
 
@@ -118,7 +118,7 @@ graph TB
     end
 
     subgraph External["🌐 External"]
-        OM["Open-Meteo API<br/>Weather + Geocoding"]
+        OWM["OpenWeatherMap API"]
         LS["localStorage<br/>Persistence Layer"]
         BN["Browser Notifications<br/>Push Reminders"]
     end
@@ -126,7 +126,7 @@ graph TB
     App --> EB --> Dashboard
     Dashboard --> Components
     Dashboard --> Logic
-    WF --> OM
+    WF --> OWM
     HE --> LS
     NF --> BN
     ST --> LS
@@ -238,15 +238,12 @@ hydrosmart/
 │   │   ├── WaterProgress.tsx     # Circular progress ring
 │   │   ├── WeatherCard.tsx       # Weather display widget
 │   │   └── WeeklyChart.tsx       # 7-day bar chart
-│   ├── hooks/
-│   │   ├── use-mobile.tsx        # Responsive breakpoint hook
-│   │   └── use-toast.ts          # Toast notification hook
 │   ├── lib/
 │   │   ├── gamification.ts       # Badge engine & stats
 │   │   ├── hydration.ts          # Core goal algorithm
 │   │   ├── notifications.ts      # Browser push system
 │   │   ├── utils.ts              # Tailwind merge utilities
-│   │   └── weather.ts            # Open-Meteo API client
+│   │   └── weather.ts            # OpenWeatherMap API client
 │   ├── pages/
 │   │   ├── Index.tsx             # Landing route
 │   │   └── NotFound.tsx          # 404 page
