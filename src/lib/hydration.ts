@@ -24,6 +24,7 @@ export interface WeatherData {
   description: string;
   icon: string;
   city: string;
+  isMock?: boolean;
 }
 
 export interface IntakeLog {
@@ -41,6 +42,9 @@ export interface ReminderLog {
   channels: ("in-app" | "email" | "whatsapp")[];
   action: "logged" | "snoozed" | "dismissed" | "pending";
   amountLogged?: number;
+  reminderType: "custom" | "weather";
+  title?: string;
+  message?: string;
 }
 
 const BASE_INTAKE_ML = 2500;

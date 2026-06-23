@@ -1,31 +1,130 @@
 import type { WeatherData } from "./hydration";
 
-const API_KEY = "fa1a86bf8d3d3f0c3a097ec917840d69";
+const API_KEY = import.meta.env.VITE_WEATHER_API_KEY || "fa1a86bf8d3d3f0c3a097ec917840d69";
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+interface CachedItem {
+  timestamp: number;
+  data: WeatherData;
+}
+
+function getCache(key: string): WeatherData | null {
+  try {
+    const raw = localStorage.getItem("hydrosmart_weather_cache");
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as Record<string, CachedItem>;
+    const cached = cache[key.toLowerCase()];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      console.log(`HydroSmart: Using cached weather for key "${key}"`);
+      return cached.data;
+    }
+  } catch (e) {
+    console.warn("Failed to parse weather cache:", e);
+  }
+  return null;
+}
+
+function setCache(key: string, data: WeatherData) {
+  try {
+    const raw = localStorage.getItem("hydrosmart_weather_cache");
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[key.toLowerCase()] = {
+      timestamp: Date.now(),
+      data,
+    };
+    localStorage.setItem("hydrosmart_weather_cache", JSON.stringify(cache));
+  } catch (e) {
+    console.warn("Failed to write to weather cache:", e);
+  }
+}
 
 export async function fetchWeather(city: string): Promise<WeatherData> {
+  const trimmedCity = city.trim();
+  if (!trimmedCity) {
+    return {
+      ...getFallbackWeather("Mumbai"),
+      isMock: true,
+    };
+  }
+
+  // Check cache first
+  const cached = getCache(trimmedCity);
+  if (cached) return cached;
+
   try {
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(trimmedCity)}&appid=${API_KEY}&units=metric`
     );
+
     if (!res.ok) {
-      throw new Error(`OpenWeatherMap error: ${res.status}`);
+      throw new Error(`OpenWeatherMap error: ${res.status} ${res.statusText}`);
     }
+
     const data = await res.json();
-    return {
+    const weatherData: WeatherData = {
       temp: Math.round(data.main.temp),
       humidity: data.main.humidity,
       description: data.weather[0]?.description || "Clear",
       icon: getWeatherEmoji(data.weather[0]?.icon || "01d"),
       city: data.name,
+      isMock: false,
     };
+
+    setCache(trimmedCity, weatherData);
+    return weatherData;
   } catch (error) {
-    console.warn("Failed to fetch weather from OpenWeatherMap, using fallback mock weather:", error);
-    return getFallbackWeather(city);
+    console.error(`Failed to fetch weather for "${trimmedCity}" (key: ${API_KEY.slice(0, 5)}...):`, error);
+    const fallback = {
+      ...getFallbackWeather(trimmedCity),
+      isMock: true,
+    };
+    return fallback;
+  }
+}
+
+export async function fetchWeatherByCoords(lat: number, lon: number): Promise<WeatherData> {
+  const cacheKey = `coords:${lat.toFixed(2)},${lon.toFixed(2)}`;
+  
+  // Check cache first
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+    );
+
+    if (!res.ok) {
+      throw new Error(`OpenWeatherMap error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const weatherData: WeatherData = {
+      temp: Math.round(data.main.temp),
+      humidity: data.main.humidity,
+      description: data.weather[0]?.description || "Clear",
+      icon: getWeatherEmoji(data.weather[0]?.icon || "01d"),
+      city: data.name || `Coords: ${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+      isMock: false,
+    };
+
+    setCache(cacheKey, weatherData);
+    // Also cache by city name as secondary lookup
+    if (data.name) {
+      setCache(data.name, weatherData);
+    }
+    return weatherData;
+  } catch (error) {
+    console.error(`Failed to fetch weather for coords ${lat}, ${lon}:`, error);
+    const fallback = {
+      ...getFallbackWeather(`Coords: ${lat.toFixed(2)}, ${lon.toFixed(2)}`),
+      isMock: true,
+    };
+    return fallback;
   }
 }
 
 function getWeatherEmoji(iconCode: string): string {
-  // Map OpenWeatherMap icon codes to emojis
   if (iconCode.startsWith("01")) return "☀️"; // clear sky
   if (iconCode.startsWith("02") || iconCode.startsWith("03") || iconCode.startsWith("04")) return "⛅"; // clouds
   if (iconCode.startsWith("09") || iconCode.startsWith("10")) return "🌧️"; // rain
@@ -36,9 +135,8 @@ function getWeatherEmoji(iconCode: string): string {
 }
 
 export function getFallbackWeather(city: string): WeatherData {
-  // Generate consistent mock weather based on city name for simulation
   const lowercaseCity = city.toLowerCase();
-  let temp = 22; // default comfortable temp
+  let temp = 22;
   let humidity = 50;
   let description = "Clear sky";
   let icon = "☀️";
@@ -53,7 +151,13 @@ export function getFallbackWeather(city: string): WeatherData {
     humidity = 18;
     description = "Sunny and hot";
     icon = "☀️";
-  } else if (lowercaseCity.includes("delhi") || lowercaseCity.includes("chennai") || lowercaseCity.includes("india")) {
+  } else if (
+    lowercaseCity.includes("delhi") ||
+    lowercaseCity.includes("chennai") ||
+    lowercaseCity.includes("india") ||
+    lowercaseCity.includes("mumbai") ||
+    lowercaseCity.includes("bangalore")
+  ) {
     temp = 34;
     humidity = 65;
     description = "Scattered clouds";
@@ -64,7 +168,6 @@ export function getFallbackWeather(city: string): WeatherData {
     description = "Clear sky";
     icon = "☀️";
   } else {
-    // Semi-random deterministic based on city name characters
     const hash = city.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     temp = 15 + (hash % 26); // 15 to 40
     humidity = 30 + ((hash * 3) % 60); // 30 to 90
@@ -78,5 +181,6 @@ export function getFallbackWeather(city: string): WeatherData {
     description,
     icon,
     city: city.charAt(0).toUpperCase() + city.slice(1),
+    isMock: true,
   };
 }

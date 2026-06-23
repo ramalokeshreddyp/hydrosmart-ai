@@ -1,0 +1,23 @@
+{
+  "short_name": "HydroSmart",
+  "name": "HydroSmart Hydration Platform",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0b1329",
+  "theme_color": "#1a9eb0",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -1,286 +1,268 @@
-# 🏗️ HydroSmart — System Architecture Documentation
+# 🏗️ HydroSmart — SaaS System Architecture Documentation
 
-This document describes the architectural design, component layers, data pipelines, state strategies, and integration boundaries of **HydroSmart**.
+This document describes the SaaS system architecture, separation of concerns, component layers, weather caching strategy, dual-reminder schedule algorithms, and integration schemas of the **HydroSmart** platform.
 
 ---
 
 ## 📋 Table of Contents
 
-- [1. System Design & Architectural Strategy](#1-system-design--architectural-strategy)
-- [2. High-Level Architecture](#2-high-level-architecture)
-- [3. Component Architecture & Hierarchy](#3-component-architecture--hierarchy)
-- [4. Data Flow & Synchronization Layer](#4-data-flow--synchronization-layer)
-- [5. State Management & Offline-First Strategy](#5-state-management--offline-first-strategy)
-- [6. Core Math & Logical Engines](#6-core-math--logical-engines)
-- [7. External Integrations](#7-external-integrations)
-- [8. Security Model & Row Level Security (RLS)](#8-security-model--row-level-security-rls)
-- [9. Error Handling & Fault Tolerance](#9-error-handling--fault-tolerance)
-- [10. Design System & Typography Integration](#10-design-system--typography-integration)
+- [1. System Design & SaaS Strategy](#1-system-design--saas-strategy)
+- [2. High-Level Modular Architecture](#2-high-level-modular-architecture)
+- [3. Tab Routing & Views Isolation](#3-tab-routing--views-isolation)
+- [4. Dual-Reminder Dispatch Engine](#4-dual-reminder-dispatch-engine)
+- [5. Geolocation Coordinates & Caching Layer](#5-geolocation-coordinates--caching-layer)
+- [6. Visual Analytics Pipeline](#6-visual-analytics-pipeline)
+- [7. Tech Stack Selection Rationale](#7-tech-stack-selection-rationale)
+- [8. System Pros, Cons, and Mitigations](#8-system-pros-cons-and-mitigations)
+- [9. Security Model & Database Schema](#9-security-model--database-schema)
+- [10. Error Handling & Fault Boundaries](#10-error-handling--fault-boundaries)
 
 ---
 
-## 1. System Design & Architectural Strategy
+## 1. System Design & SaaS Strategy
 
-HydroSmart is built as a hybrid **Client-Server Single Page Application (SPA)** that prioritizes **resilient availability**. The application is structured to decouple views from core math engines and abstract data management through an adapter pattern that switches between cloud database schemas and browser storage.
+HydroSmart is built as an **Offline-First, Cloud-Synchronized SaaS Single Page Application (SPA)**. It prioritizes **proactive health reminders** over simple volumetric recording.
 
 ### Core Architectural Principles:
-* **Separation of Concerns**: UI rendering (`/components`) is strictly isolated from calculations and API parsing (`/lib`).
-* **Graceful Degradation**: Features fall back to reasonable defaults if external dependencies (such as weather servers or databases) become unavailable.
-* **Pure Logical Engines**: Core math operations like goal sizing and streak calculations are structured as pure functions to simplify unit testing.
-* **Resilient Data Access**: DB client wrapper (`db`) operates transparently, caching transactions locally so stats remain warm and responsive.
+* **Reminders First, Tracking Optional**: Hydration reminders execute independently of whether a user logs their water intake.
+* **Separation of Concerns**: Strictly separates UI layouts (`/components`), helper services (`/lib`), route containers (`/pages`), and schema migrations (`/supabase/migrations`).
+* **Offline Fallback Adapter**: Decoupled database helper (`db`) dynamically switches between Supabase cloud queries and local storage depending on credential availability, ensuring zero application crashes.
+* **Accurate Meteorological Alignment**: Integrates live temperature queries and caching to adapt reminder frequencies to actual local weather.
 
 ---
 
-## 2. High-Level Architecture
+## 2. High-Level Modular Architecture
 
-The system is organized into three distinct layers: Presentation, Business Logic, and the Data Integration Layer.
+The application is structured in three logical layers:
 
 ```mermaid
 graph TB
-    subgraph Presentation_Layer["Presentation Layer (Client Browser)"]
-        App["App.tsx<br/>Application Bootstrap"]
-        EB["ErrorBoundary.tsx<br/>Runtime Shield"]
-        AuthGate["Auth.tsx<br/>Session Gatekeeper"]
-        Dash["Dashboard.tsx<br/>State Coordinator"]
-        UI["UI Components<br/>(Circular Rings, Charts, Forms)"]
+    subgraph Presentation_Layer["Presentation Layer (Client App)"]
+        App["App.tsx<br/>Bootstrap & Providers"]
+        Auth["Auth.tsx<br/>Login / Wizard Onboarding"]
+        Dash["Dashboard.tsx<br/>SaaS Layout Coordinator"]
+        UI["shadcn/ui Core Components<br/>(Button, Input, Label)"]
+        Charts["Recharts Modules<br/>(Area, Bar, SVG Progress Ring)"]
     end
 
-    subgraph Business_Layer["Business Logic Layer (Code Engines)"]
-        GoalEng["hydration.ts<br/>Hydration Engine"]
-        BadgeEng["gamification.ts<br/>Badge Evaluator"]
-        RemindEng["notifications.ts<br/>Smart Reminders"]
-        WeatherCl["weather.ts<br/>Weather Normalizer"]
+    subgraph Logic_Layer["Business Logic Layer (Services)"]
+        NotifyEngine["notifications.ts<br/>1m Tick Scheduler"]
+        WeatherClient["weather.ts<br/>Cache & Coords Lookup"]
+        HydrateEngine["hydration.ts<br/>Celsius Adjustment Math"]
+        GameEngine["gamification.ts<br/>Streaks & Badges Evaluation"]
     end
 
-    subgraph Data_Layer["Data Integration Layer"]
-        DBClient["supabase.ts (db helper)<br/>Dynamic Router"]
-        LS["LocalStorage Cache<br/>Offline Mirror"]
-        SupabaseDB["Supabase Postgres<br/>Cloud Database"]
-        WeatherAPI["OpenWeatherMap API<br/>Climate REST Endpoint"]
-        PushAPI["Browser Push Service<br/>Notification Trigger"]
+    subgraph Data_Layer["Data & Persistence Layer"]
+        DBCore["supabase.ts<br/>Dynamic Read/Write Router"]
+        LocalStorage["LocalStorage<br/>Cache (TTL 15m) & Fallbacks"]
+        SupabasePostgres["Supabase Cloud Postgres<br/>Tables: profiles, logs"]
+        OpenWeather["OpenWeatherMap API<br/>Climate REST Endpoint"]
+        NotificationAPI["Browser Push Service<br/>Web Notifications API"]
     end
 
-    App --> EB
-    EB --> AuthGate
-    AuthGate --> Dash
+    App --> Auth
+    Auth --> Dash
     Dash --> UI
-    Dash --> Business_Layer
-    Business_Layer --> DBClient
-    DBClient -->|Read/Write if Online| SupabaseDB
-    DBClient -->|Read/Write if Offline| LS
-    WeatherCl --> WeatherAPI
-    RemindEng --> PushAPI
-    
+    Dash --> Charts
+    Dash --> Logic_Layer
+    Logic_Layer --> DBCore
+    DBCore -->|Online| SupabasePostgres
+    DBCore -->|Offline / Cache| LocalStorage
+    WeatherClient --> OpenWeather
+    NotifyEngine --> NotificationAPI
+
     style Presentation_Layer fill:#0f172a,stroke:#0891b2,color:#e2e8f0
-    style Business_Layer fill:#1e293b,stroke:#0f766e,color:#e2e8f0
+    style Logic_Layer fill:#1e293b,stroke:#0f766e,color:#e2e8f0
     style Data_Layer fill:#0c4a6e,stroke:#38bdf8,color:#e2e8f0
 ```
 
 ---
 
-## 3. Component Architecture & Hierarchy
+## 3. Tab Routing & Views Isolation
 
-The visual shell uses an orchestrator container pattern where one controller component manages asynchronous loops, session subscriptions, and passes down state.
+The top navigation bar acts as the master routing panel, toggling the dashboard view state.
 
 ```mermaid
 graph TD
-    App["App.tsx (Root Providers)"]
-    EB["ErrorBoundary.tsx (Class Guard)"]
-    Router["BrowserRouter"]
-    Index["Index.tsx Page"]
-    Dashboard["Dashboard.tsx (State Orchestrator)"]
-
-    App --> EB --> Router --> Index --> Dashboard
-
-    subgraph Guards["Authentication Gate"]
-        Auth["Auth.tsx (Login / Register Card)"]
+    Nav[Header Nav Tabs] -->|ActiveTab: 'dashboard'| DashView[Dashboard Grid View]
+    Nav -->|ActiveTab: 'settings'| SettingsView[Settings View Page]
+    
+    subgraph DashView["Dashboard Tab Columns"]
+        Col1["Column 1<br/>Water Intake Circle & Quick Add<br/>(Hidden if Goal is Null)"]
+        Col2["Column 2<br/>Live Weather card,<br/>Schedule toggles & preset simulations"]
+        Col3["Column 3<br/>Reminder stats Today/Week/Month<br/>Timeline log outbox"]
+        Bottom["Full Width Bottom Section<br/>Daily Intake, Dispatch Area, and Hour Density Charts"]
     end
-
-    subgraph Views["Dashboard Child Components"]
-        ProfileSetup["ProfileSetup.tsx (Onboarding Wizard)"]
-        WaterProgress["WaterProgress.tsx (SVG Progress Ring)"]
-        WeatherCard["WeatherCard.tsx (Temperature Card & Simulator)"]
-        QuickAdd["QuickAdd.tsx (Intake Logging Panel)"]
-        ReminderControl["ReminderControl.tsx (Notification Permissions)"]
-        GamificationPanel["GamificationPanel.tsx (Badge Grid & Metrics)"]
-        WeeklyChart["WeeklyChart.tsx (Recharts SVG Analytics)"]
-        Toast["BadgeUnlockToast.tsx (Achievement Popup)"]
+    
+    subgraph SettingsView["Settings Tab Form"]
+        Account["Account Credentials<br/>(Email, Password update)"]
+        Health["Personal Health Metrics<br/>(Name, Weight, Age, Gender)"]
+        Schedule["Time Schedule<br/>(Wake, Sleep, Work Start/End, City, Interval)"]
+        Channels["Delivery Channels<br/>(In-App, Email, WhatsApp Indian phone)"]
     end
-
-    Dashboard -->|Session check fails| Auth
-    Dashboard -->|No Profile details| ProfileSetup
-    Dashboard --> WaterProgress
-    Dashboard --> WeatherCard
-    Dashboard --> QuickAdd
-    Dashboard --> ReminderControl
-    Dashboard --> GamificationPanel
-    Dashboard --> WeeklyChart
-    Dashboard --> Toast
-
-    style Dashboard fill:#0891b2,stroke:#06b6d4,color:#fff
-    style Auth fill:#dc2626,stroke:#ef4444,color:#fff
 ```
-
-### Component Categories:
-1. **Container Orchestrator**: `Dashboard.tsx` listens to auth state changes, polls OpenWeatherMap, updates goals, aggregates intake logs, and dispatches data.
-2. **Interactive Handlers**: `QuickAdd.tsx`, `ProfileSetup.tsx`, and `Auth.tsx` validate form inputs and trigger database updates.
-3. **Data Visualizers**: `WaterProgress.tsx` uses custom SVG paths and spring parameters. `WeeklyChart.tsx` maps daily arrays using Recharts components.
-4. **Toast Alerts**: `BadgeUnlockToast.tsx` is mounted within `AnimatePresence` for dynamic entrance and exit animations.
 
 ---
 
-## 4. Data Flow & Synchronization Layer
+## 4. Dual-Reminder Dispatch Engine
 
-HydroSmart utilizes **unidirectional data flows** to keep the application view in sync with storage layers.
+The reminder scheduler uses two concurrent alert models:
+1. **Mandatory Custom reminders**: Set by the user (e.g. every 2 hours). These always execute during work hours.
+2. **Supplemental Weather reminders**: Checked periodically against temperature levels. Spikes in local heat trigger additional alerts, decoupled from custom reminders.
+
+### Background Check Flow (1-Minute Interval):
+
+```mermaid
+flowchart TD
+    Tick[Scheduler ticks every 1 minute] --> CheckWork{Is local time within work hours?}
+    CheckWork -->|No| Skip[Skip Alert & Wait]
+    CheckWork -->|Yes| LastLog[Fetch timestamps of latest custom reminder and latest weather reminder]
+    
+    LastLog --> Diff[Calculate diffMinutesCustom = now - lastCustomTime<br/>and diffMinutesWeather = now - lastWeatherTime]
+    Diff --> CustomCheck{Is diffMinutesCustom >= Profile.customInterval?}
+    
+    CustomCheck -->|Yes| FireCustom[Trigger Scheduled Custom Reminder<br/>Set reminderType = 'custom']
+    CustomCheck -->|No| AdaptiveCheck{Is Weather Alerts Enabled?}
+    
+    AdaptiveCheck -->|No| Skip
+    AdaptiveCheck -->|Yes| ReadTemp[Fetch current temperature]
+    
+    ReadTemp --> Extreme{Is temp >= 40°C?}
+    Extreme -->|Yes| Check30{Is diffMinutesWeather >= 30m?}
+    Check30 -->|Yes| FireWeather[Trigger Supplemental Weather Reminder<br/>Set reminderType = 'weather']
+    Check30 -->|No| Skip
+    
+    Extreme -->|No| Hot{Is temp >= 30°C?}
+    Hot -->|Yes| Check60{Is diffMinutesWeather >= 60m?}
+    Check60 -->|Yes| FireWeather
+    Check60 -->|No| Skip
+    
+    Hot -->|No| Skip
+    
+    FireCustom --> LogAlert[Create Log Entry & Dispatch to Channels]
+    FireWeather --> LogAlert
+```
+
+---
+
+## 5. Geolocation Coordinates & Caching Layer
+
+To verify weather accuracy and avoid hitting OpenWeatherMap API limits, a 15-minute Time-To-Live (TTL) cache is implemented inside `localStorage`.
+
+### Data Retrieval & Resolution Workflow:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User as User UI
-    participant Dash as Dashboard.tsx
-    participant DB as supabase.ts (db helper)
-    participant Cloud as Supabase Postgres
-    participant Cache as LocalStorage
+    participant UI as Dashboard View
+    participant Weather as weather.ts Service
+    participant Cache as LocalStorage Cache
+    participant API as OpenWeatherMap API
 
-    User->>Dash: Action (e.g., Click "+250ml" or Change Profile)
-    Dash->>DB: DB Request (addIntakeLog / saveProfile)
-    
-    critical Evaluate Supabase Connectivity
-        DB->>DB: Check if Supabase Client is Configured & Online
-    option Yes (Cloud Sync)
-        DB->>Cloud: Execute Postgres Mutation
-        Cloud-->>DB: Confirm Transaction (Return DB model)
-        DB->>Cache: Mirror response into LocalStorage Cache
-    option No (Offline Fallback)
-        DB->>Cache: Write transaction directly to LocalStorage
+    UI->>Weather: fetchWeather(city) or fetchWeatherByCoords(lat, lon)
+    Weather->>Cache: Read Cache object
+    alt Cache Hits & Timestamp < 15 minutes old
+        Cache-->>Weather: Return Cached WeatherData
+        Weather-->>UI: Return WeatherData (isMock: false)
+    else Cache Miss / Expired
+        alt Geolocation Coords Triggered
+            Weather->>API: GET weather?lat={lat}&lon={lon}&appid={key}&units=metric
+        else City Text Triggered
+            Weather->>API: GET weather?q={city}&appid={key}&units=metric
+        end
+        
+        alt API Success
+            API-->>Weather: Return 200 OK Celsius JSON
+            Weather->>Cache: Save CachedItem (data, timestamp = now)
+            Weather-->>UI: Return WeatherData (isMock: false)
+        else API Failure / Unauthorized
+            Weather->>Weather: Run Fallback mock generator
+            Weather-->>UI: Return Fallback mock weather (isMock: true)
+        end
     end
-
-    DB-->>Dash: Return updated model
-    Dash->>Dash: Refresh state metrics (streaks, today total)
-    Dash->>User: Re-render UI views (spring animation, updated stats)
 ```
 
 ---
 
-## 5. State Management & Offline-First Strategy
+## 6. Visual Analytics Pipeline
 
-The application avoids complex state libraries like Redux or Zustand. State is managed using React hooks colocated at the container level, utilizing an **offline-first local mirror pattern**.
-
-| Layer | Implementation | Purpose / Managed Scope |
-| :--- | :--- | :--- |
-| **Volatile Client State** | `useState`, `useRef`, `useCallback` | Track active user session, loading masks, open modals, simulated weather states, and previous badge benchmarks. |
-| **Server Cache State** | React Query | Cache API calls to OpenWeatherMap, preventing unnecessary network queries. |
-| **Data Gateway** | `supabase.ts` | Abstract database operations and route data based on config flags. |
-| **Persistence Mirror** | `localStorage` | Backs up profiles, logs, and reminder data locally to ensure instant page loads and offline usability. |
+HydroSmart records every reminder log to compute analytics:
+- **Daily Custom vs Weather Counts**: Reminder logs are parsed daily to build Area charts showing scheduled reminders versus supplemental alerts.
+- **Hourly Reminder Density**: Maps log timestamps into a 24-hour array to draw a bar chart representing the times of day reminders are most frequently sent.
+- **Weekly Intake History**: Compares intake amounts to daily goals (if goal tracking is enabled).
 
 ---
 
-## 6. Core Math & Logical Engines
+## 7. Tech Stack Selection Rationale
 
-The application's logic resides in `src/lib/` as type-safe TypeScript modules.
-
-### A. Hydration Goal Calculation (`src/lib/hydration.ts`)
-Calculates the dynamic goal according to weight and real-time weather details:
-$$\text{Baseline} = \max(\text{weight} \times 35\,\text{ml}, 2500\,\text{ml})$$
-* **Temperature Adjustment**: Adds $25\,\text{ml}$ per degree above $25^\circ\text{C}$ up to $30^\circ\text{C}$, and $50\,\text{ml}$ per degree above $30^\circ\text{C}$.
-* **Humidity Adjustment**: Adds $300\,\text{ml}$ if relative humidity is below $30\%$, and $150\,\text{ml}$ if below $50\%$.
-* **Manual Override**: If `manualGoal` is configured in the profile, it overrides all other calculations.
-* **Rounding**: The final target is rounded to the nearest $50\,\text{ml}$ for clean tracking.
-
-### B. Smart Reminder Intervals
-Determines the spacing between notifications based on current temperature:
-* Temp $< 20^\circ\text{C} \implies 120$ minutes (2-hour reminder)
-* Temp $20^\circ\text{C} \le \text{temp} \le 30^\circ\text{C} \implies 90$ minutes (1.5-hour reminder)
-* Temp $30^\circ\text{C} < \text{temp} \le 40^\circ\text{C} \implies 60$ minutes (1-hour reminder)
-* Temp $> 40^\circ\text{C} \implies 30$ minutes (30-minute reminder)
-
-### C. Streak & Achievement Logic (`src/lib/gamification.ts`)
-* **Consecutive Streaks**: Evaluates daily intake against target goals. If today has no logs yet, the streak count check is evaluated starting from yesterday to prevent resetting streaks prematurely.
-* **Consistency Score**: Evaluates tracking behavior over a rolling 7-day window.
+- **React & TypeScript**: Chosen for standard SPA routing, clean interface state bindings, and type-safety.
+- **Tailwind CSS + CSS Variables**: Provides theme transitions (Dark/Light mode) without layout reflows.
+- **Supabase (PostgreSQL & Go Auth)**: Offers scalable cloud account syncing and security policies without backend setup.
+- **Recharts (SVG-based)**: Provides clean, responsive SVG analytics charts.
+- **Vitest**: Supports fast, modern unit tests matching Vite configurations.
 
 ---
 
-## 7. External Integrations
+## 8. System Pros, Cons, and Mitigations
 
-### 1. OpenWeatherMap API
-Fetches local weather conditions by city name.
-* **Flow**: Request city name $\implies$ API returns JSON details $\implies$ Normalization maps weather codes to descriptive emojis (`☀️`, `⛅`, `🌧️`, `⛈️`, `❄️`, `🌫️`).
-* **Fallback**: Uses a deterministic mock generator in `src/lib/weather.ts` if the request fails, matching temperature and humidity profiles to regional characteristics.
+### Pros:
+1. **Resilient Offline Fallback**: The app operates fully locally if the database is configured incorrectly or offline.
+2. **Performance Optimized**: Built-in 15-minute weather caching limits network overhead and prevents rate-limiting issues.
+3. **Dynamic Climate Tuning**: Targets adapt to weather changes in real-time.
 
-### 2. Browser Notifications API
-Triggers system push notifications during waking hours.
-* Requests permission explicitly via `Notification.requestPermission()`.
-* Schedules reminders based on the computed interval using `setInterval`.
-* Only fires when the browser window is backgrounded (`document.hidden === true`) to prevent spamming active users.
-* Uses the `tag: "hydration-reminder"` attribute to replace outdated notifications on screen.
+### Cons & Mitigations:
+- **API Key Limits**: Free OpenWeather API keys are limited.
+  - *Mitigation*: The app uses a 15-minute cache and includes a simulated mock generator to keep the app functional if key errors occur.
+- **Browser Push Limitations**: Browsers require user permission to show push alerts.
+  - *Mitigation*: The app falls back to in-app dialog overlays if browser push permissions are denied.
 
 ---
 
-## 8. Security Model & Row Level Security (RLS)
+## 9. Security Model & Database Schema
 
-Integrating Supabase shifts data security to the database level. Each table in the PostgreSQL database is configured with **Row Level Security (RLS)** to isolate user data.
+Every transaction is protected at the database level using Row Level Security (RLS) policies:
 
 ```sql
--- Enable Row Level Security
+-- Profiles table structure
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  name TEXT NOT NULL,
+  weight NUMERIC NOT NULL,
+  age INTEGER NOT NULL,
+  gender TEXT NOT NULL DEFAULT 'other',
+  city TEXT NOT NULL,
+  wake_time TEXT NOT NULL DEFAULT '07:00',
+  sleep_time TEXT NOT NULL DEFAULT '23:00',
+  work_start TEXT NOT NULL DEFAULT '09:00',
+  work_end TEXT NOT NULL DEFAULT '17:00',
+  custom_interval INTEGER NOT NULL DEFAULT 60,
+  weather_reminders_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  channels TEXT[] NOT NULL DEFAULT ARRAY['in-app'],
+  email TEXT,
+  phone TEXT,
+  manual_goal INTEGER,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Row Level Security Policy
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.intake_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reminder_logs ENABLE ROW LEVEL SECURITY;
-
--- Security Policies
-DROP POLICY IF EXISTS "Users can manage their own profiles" ON public.profiles;
-CREATE POLICY "Users can manage their own profiles"
-  ON public.profiles FOR ALL USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can manage their own intake logs" ON public.intake_logs;
-CREATE POLICY "Users can manage their own intake logs"
-  ON public.intake_logs FOR ALL USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can manage their own reminder logs" ON public.reminder_logs;
-CREATE POLICY "Users can manage their own reminder logs"
-  ON public.reminder_logs FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users manage profiles" ON public.profiles FOR ALL USING (auth.uid() = id);
 ```
-
-Under these policies:
-* Users can only read and write data that matches their authenticated `auth.uid()`.
-* Direct access bypasses are blocked, ensuring secure data isolation.
 
 ---
 
-## 9. Error Handling & Fault Tolerance
+## 10. Error Handling & Fault Boundaries
 
-HydroSmart uses layered error boundaries to prevent runtime exceptions from crashing the app:
-
-```mermaid
-flowchart TD
-    Error[Exception Detected] --> Type{Error Type}
-    
-    Type -->|Render Error| EB[ErrorBoundary.tsx Class Guard]
-    EB -->|Catch Exception| EBUI[Render Fallback Screen with Reload Trigger]
-    
-    Type -->|Network / DB Error| DBFail[supabase.ts try-catch]
-    DBFail -->|Fall back| LocalStore[Local Storage Fallback Mode]
-    LocalStore -->|Log warning| AppSync[Flag Offline Mode and Continue Operating]
-    
-    Type -->|Weather API Fail| WeatherFail[weather.ts catch block]
-    WeatherFail -->|Fetch Simulator| SimulateWeather[Generate deterministic city mock weather]
-    SimulateWeather --> GoalUpdate[Calculate Goal & Continue Operating]
-```
-
-* **Storage Fallbacks**: Any database query caught in a `try/catch` block automatically redirects to local storage arrays to keep the app operational.
-* **Input Boundaries**: Controlled inputs validate form data before it is sent to database modules.
+The UI is wrapped in a React `ErrorBoundary` class component. In addition, API fetch operations fall back to cached or deterministic mock data if network connections fail. This ensures that a failure in one module does not disrupt the rest of the application.
 
 ---
 
-## 10. Design System & Typography Integration
+## 11. Progressive Web App (PWA) Architecture
 
-The user interface uses a custom HSL design system configured in `src/index.css` and `tailwind.config.ts`.
-
-### Theme Color Definitions:
-* **Backgrounds**: Slate tones (`--background`: `195 30% 97%`, `--foreground`: `200 50% 10%`) for a clean, professional aesthetic.
-* **Brand Primary**: Hydro Cyan (`--primary`: `192 82% 45%`) representing water.
-* **Accent Success**: Emerald Green (`--accent`: `168 70% 42%`) for achievements and completion.
-* **Glassmorphism Styling**: Backgrounds use `backdrop-blur-lg bg-white/40 border border-white/20 dark:bg-slate-900/40 dark:border-slate-800/20` to create a modern visual look.
-
-### Typography Hierarchy:
-* **Headings**: `Space Grotesk`, sans-serif (Weights: `600`, `700`) for structural elements.
-* **Body & Data**: `Plus Jakarta Sans`, sans-serif (Weights: `400`, `500`, `700`) for readability.
+HydroSmart is built to meet full browser PWA requirements, allowing users to install the website as a standalone application on mobile or desktop environments:
+1. **Web App Manifest (`public/manifest.json`)**: Configures application naming, brand icons (`logo.svg` maskables), standalone display properties, and orientation parameters.
+2. **Service Worker Lifecycle (`public/sw.js`)**:
+   - *Install*: Caches core static shell assets (`/`, `index.html`, `logo.svg`, `favicon.ico`) to speed up loading.
+   - *Activate*: Claims clients immediately via `clients.claim()` to start caching fetches.
+   - *Fetch*: Implements a network-first, cache-fallback interception strategy to serve resources.
+3. **Install Banner UI**: Captures browser-dispatched `beforeinstallprompt` events and exposes a custom install card on the Dashboard view alongside a header button, prompting users to install the application.

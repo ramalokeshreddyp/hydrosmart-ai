@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/%F0%9F%92%A7_HydroSmart-Intelligent_Hydration-0891b2?style=for-the-badge&labelColor=0f172a" alt="HydroSmart Badge" />
+  <img src="https://img.shields.io/badge/%F0%9F%92%A7_HydroSmart-SaaS_Hydration_Platform-0891b2?style=for-the-badge&labelColor=0f172a" alt="HydroSmart Badge" />
 </p>
 
-<h1 align="center">💧 HydroSmart — Weather-Adaptive Hydration Tracker</h1>
+<h1 align="center">💧 HydroSmart — Intelligent SaaS Hydration Reminder Platform</h1>
 
 <p align="center">
-  <strong>A full-stack, weather-adaptive hydration system that personalizes daily water goals and schedules smart reminders based on body weight, real-time climate conditions, and historical intake metrics. Powered by React, TypeScript, and Supabase.</strong>
+  <strong>A production-ready SaaS platform designed for software engineers, students, and working professionals. Solves the challenge of desk-bound dehydration through mandatory custom base reminders, climate-adaptive supplemental alerts, geolocation-based weather tracking, and responsive visual analytics.</strong>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind" />
-  <img src="https://img.shields.io/badge/Supabase-FullStack-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/Framer_Motion-12-FF0055?style=flat-square&logo=framer&logoColor=white" alt="Framer Motion" />
   <img src="https://img.shields.io/badge/Recharts-2.15-FF6B6B?style=flat-square" alt="Recharts" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
@@ -24,381 +24,318 @@
 ## 📋 Table of Contents
 
 - [🌟 Project Overview](#-project-overview)
-- [🛠️ Tech Stack](#%EF%B8%8F-tech-stack)
-- [🏗️ Code Structure & Folder Organization](#%EF%B8%8F-code-structure--folder-organization)
-- [🔄 Workflow & Execution Flow](#-workflow--execution-flow)
-  - [1. Application Boot & Auth Sequence](#1-application-boot--auth-sequence)
-  - [2. Hydration Goal Calculation Logic](#2-hydration-goal-calculation-logic)
-  - [3. Water Intake Logging & Badge Evaluation](#3-water-intake-logging--badge-evaluation)
+- [🛠️ SaaS Tech Stack](#%EF%B8%8F-saas-tech-stack)
+- [🏗️ Code Structure & Folder Organization](#-code-structure--folder-organization)
+- [🔄 System & Execution Diagrams](#-system--execution-diagrams)
+  - [1. User Session & Onboarding Sequence](#1-user-session--onboarding-sequence)
+  - [2. Weather-Adaptive Reminder Supplemental Rules](#2-weather-adaptive-reminder-supplemental-rules)
+  - [3. Geolocation & Weather Data Flow](#3-geolocation--weather-data-flow)
 - [🚀 Setup & Installation](#-setup--installation)
   - [1. Clone & Install Dependencies](#1-clone--install-dependencies)
-  - [2. Supabase Integration Setup](#2-supabase-integration-setup)
-  - [3. Run the Project Locally](#3-run-the-project-locally)
-- [📖 Detailed Usage Instructions](#-detailed-usage-instructions)
-- [🏆 Gamification & Milestones](#-gamification--milestones)
+  - [2. Supabase Cloud Configuration](#2-supabase-cloud-configuration)
+  - [3. Environment Credentials Setup](#3-environment-credentials-setup)
+  - [4. Execution Commands](#4-execution-commands)
+- [📖 SaaS Functional Breakdown](#-saas-functional-breakdown)
+  - [Multi-Step Onboarding](#multi-step-onboarding)
+  - [SaaS Header & Navigation Layout](#saas-header--navigation-layout)
+  - [Hydration Tracking & PWA Installation](#hydration-tracking--pwa-installation)
+  - [Visual Reminder & Hydration Analytics](#visual-reminder--hydration-analytics)
+- [🏆 Gamification & Milestone Badges](#-gamification--milestones)
 
 ---
 
 ## 🌟 Project Overview
 
-**HydroSmart** is an intelligent health utility designed to combat daily dehydration by replacing static hydration recommendations (such as "8 glasses a day") with a dynamic, **climate-aware hydration model**. The application adjusts daily fluid targets in real-time according to regional temperature, humidity, and individual physiological baselines.
+Desk-bound professionals, remote software engineers, and students frequently experience **inadvertent dehydration** due to long hours of focused screen time. **HydroSmart** addresses this problem by moving beyond simple volumetric tracking apps and establishing an **intelligent reminder engine** that runs proactively.
 
 ### Key Capabilities:
-* **Dynamic Hydration Algorithm**: Automatically evaluates weight baselines and applies real-time adjustments based on ambient meteorological data.
-* **Weather-Adaptive Reminders**: Dynamically scales the notification frequency (from 30-minute intervals during extreme heat down to 2-3 hour intervals on cool days).
-* **Supabase Authentication & Synchronization**: Provides cloud account syncing for seamless profiles, logs, and reminder state management across devices.
-* **Graceful Local Fallback**: Operates as a 100% functional, local-first app using browser `localStorage` if database environment variables are omitted or offline.
-* **Modern Gamification Framework**: Evaluates 14 unlockable milestone badges based on streaks, consistency indices, and volumetric logs.
-* **Glassmorphic UI**: High-fidelity dashboard styled using Tailwind CSS, featuring spring-physics progress indicators and responsive layouts.
+* **Proactive Reminders first**: The platform prioritizes notifications over manual logging. If the user chooses not to log water, the reminder system remains fully functional.
+* **Mandatory Custom Intervals**: User-selected intervals (e.g., every 30m, 1h, 2h) are enforced during wake hours.
+* **Weather-Adaptive Supplemental Alerts**: Integrates OpenWeatherMap to calculate temperature indices. Spikes in local heat trigger supplemental hydration alerts (every 30m above 40°C, every 60m above 30°C) without shifting the main custom reminder schedule.
+* **Geolocation-Based Climate Detection**: Resolves city coordinates in real-time via browser geolocation APIs, backed by a **15-minute localStorage cache** to minimize weather API query fatigue.
+* **Integrated Delivery Channels**: Connects In-App notifications, Email alerts (automatically using credentials without duplicate prompts), and WhatsApp messages (validated for 10-digit Indian mobile formats).
+* **Responsive SaaS Grid**: A beautiful theme-toggleable full-screen layout built with Tailwind CSS, supporting side-by-side analytics visualizers, scheduler states, and historical timeline logs.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ SaaS Tech Stack
 
-| Category | Technology | Description |
+| Component | Technology | Description |
 | :--- | :--- | :--- |
-| **Frontend Core** | React 18.3 (TypeScript 5.8) | Component architecture, state management, and type-safe data pipelines. |
-| **Build System** | Vite 5.4 | Fast bundler with Hot Module Replacement (HMR) and production minification. |
-| **Database & Auth** | Supabase | User session management (Sign Up/In/Out) and remote PostgreSQL storage. |
-| **Styling** | Tailwind CSS 3.4 | Utility-first responsive stylesheets and theme token definitions. |
-| **Motion & Physics** | Framer Motion 12 | Spring-based animation parameters and fluid enter/exit transitions. |
-| **Analytics Charting**| Recharts 2.15 | Responsive SVG charts displaying a rolling 7-day intake history. |
-| **Data Fetching** | TanStack React Query 5 | Client-side caching and automated request retries for API communication. |
-| **UI Components** | Radix UI + shadcn/ui | Headless, accessible primitives for dialogs, forms, and layouts. |
-| **Meteorology API** | OpenWeatherMap | REST endpoint providing current temperatures and humidity parameters. |
-| **Unit Testing** | Vitest 3.2 | Isolated unit test suites checking streaking logic, calculation modules, and time zones. |
+| **Frontend Framework** | React 18.3 & TypeScript 5.8 | Type-safe state managers, routing contexts, and rendering engines. |
+| **Theme & Utility CSS**| Tailwind CSS 3.4 + CSS Variables | Design system with glassmorphism overlays and Dark/Light transitions. |
+| **Database & Auth** | Supabase PostgreSQL & Auth | Remote session controls, profiles table, and logs sync. |
+| **Build & Dev Server** | Vite 5.4 | Production asset bundling, HMR, and tree-shaking compilation. |
+| **Visual Animation** | Framer Motion 12 | Spring-based physical animations for dialogs and modals. |
+| **Analytics Visuals** | Recharts 2.15 | Responsive SVG renderers mapping logs and hourly reminders. |
+| **Unit Test Suites** | Vitest 3.2 + JSDOM | Execution checks for streaks, weather formulas, and timezones. |
+| **Weather Interface** | OpenWeatherMap REST API | Fetching real-time temperature, humidity, and weather conditions. |
 
 ---
 
 ## 🏗️ Code Structure & Folder Organization
 
-The codebase is organized following a clean, modular structure dividing business logic, UI components, tests, and configuration assets:
-
 ```
 hydrosmart/
-├── .env.example                 # Template for database & API credentials
-├── README.md                    # Visual setup, structure, and execution overview
-├── architecture.md              # Detailed structural design and system patterns
-├── projectdocumentation.md      # Full project breakdown and functional metrics
-├── package.json                 # Project dependencies, dev packages, and build scripts
-├── postcss.config.js            # PostCSS configuration for Tailwind compiler
-├── tailwind.config.ts           # Design tokens, color palettes, and animations
-├── tsconfig.json                # TypeScript project configuration rules
-├── vite.config.ts               # Bundling, path aliasing, and dev-server parameters
-├── vitest.config.ts             # Vitest test framework parameters
-├── index.html                   # HTML entry point with meta tags and SEO configs
+├── .env.example                 # Environment template for weather API & Supabase
+├── README.md                    # SaaS project overview, setup, and diagrams
+├── architecture.md              # Technical design, component charts, and tech decision logs
+├── projectdocumentation.md      # Detailed database schema, modules, and testing guidelines
+├── package.json                 # Core dependencies, scripts, and build targets
+├── tailwind.config.ts           # Design tokens, layouts, and theme configs
+├── tsconfig.json                # TypeScript compilation guidelines
+├── vite.config.ts               # Path aliases, dev-server ports, and bundler setups
+├── index.html                   # HTML entry point with meta tags & SEO configs
 │
 ├── public/                      # Static assets served directly
-│   ├── favicon.ico              # Browser bookmark icon
-│   ├── logo.svg                 # Scalable application logo
-│   └── robots.txt               # Crawler accessibility guidelines
+│   ├── favicon.ico              # Browser header bookmark icon
+│   ├── logo.svg                 # Vector app logo
+│   └── robots.txt               # Crawler instructions
 │
 └── src/                         # Application source files
-    ├── main.tsx                 # Client entry bootstrap
-    ├── App.tsx                  # App layout, error boundary, and router configuration
-    ├── App.css                  # Core CSS overrides
-    ├── index.css                # Tailwind directives and CSS variables (HSL tokens)
+    ├── main.tsx                 # Client entry point
+    ├── App.tsx                  # Layout boundary, query provider, and page routing
+    ├── index.css                # Tailwind directives and custom theme transition classes
     │
     ├── components/              # React UI Components
-    │   ├── ui/                  # Atom-level layout primitives (Shadcn components)
-    │   │   ├── button.tsx       # Standard interactive button
+    │   ├── ui/                  # Atom-level layout primitives
+    │   │   ├── button.tsx       # Standard interactive button component
     │   │   ├── input.tsx        # Styled form input field
-    │   │   └── label.tsx        # Accessible input labeling
-    │   ├── Auth.tsx             # Register / Login forms with offline option
-    │   ├── BadgeUnlockToast.tsx # Achievement badge notification slide-in
-    │   ├── Dashboard.tsx        # Container coordinator managing session, weather, and logs
-    │   ├── ErrorBoundary.tsx    # Class component recovering from runtime exceptions
-    │   ├── GamificationPanel.tsx# Renders streaks, totals, and unlocked achievements
-    │   ├── ProfileSetup.tsx     # Wizard gathering user metric details
-    │   ├── QuickAdd.tsx         # Fast water logging selectors with manual option
-    │   ├── ReminderControl.tsx  # Toggle switch for notification permissions
-    │   ├── WaterProgress.tsx    # SVG-based progress circle with spring-physics
-    │   ├── WeatherCard.tsx      # Current weather status display and simulator overrides
-    │   └── WeeklyChart.tsx      # Analytics charting with target-goal references
+    │   │   └── label.tsx        # Accessible form label component
+    │   ├── Auth.tsx             # Auth gateway (Login / Wizard registration)
+    │   ├── BadgeUnlockToast.tsx # Milestone achievement notifications
+    │   ├── Dashboard.tsx        # Grid dashboard, top nav tabs, analytics visualizers
+    │   ├── ErrorBoundary.tsx    # Exception catcher recovering from runtime crashes
+    │   ├── GamificationPanel.tsx# Streak evaluation cards and badge matrices
+    │   ├── ProfileSetup.tsx     # Full page / Modal profile setup editor
+    │   ├── QuickAdd.tsx         # Quick water logging selectors
+    │   ├── WaterProgress.tsx    # Circular intake progress circle
+    │   └── WeatherCard.tsx      # Climate stats card and simulator panel
     │
-    ├── lib/                     # Business Logic & Utility Modules
+    ├── lib/                     # Core Business Modules
     │   ├── gamification.ts      # Streaking algorithm and badge definition engine
-    │   ├── hydration.ts         # Math engine calculating daily goal and notification timings
-    │   ├── notifications.ts     # Browser notification scheduling interface
-    │   ├── supabase.ts          # Supabase client wrapper with transparent local-storage fallbacks
-    │   ├── utils.ts             # Date and Tailwind-merge helpers
-    │   └── weather.ts           # OpenWeatherMap client fetching real-time climate stats
+    │   ├── hydration.ts         # Math engine calculating daily goal and timezone limits
+    │   ├── notifications.ts     # 1-minute interval adaptive scheduler checks
+    │   ├── supabase.ts          # Supabase client wrapper with transparent local fallbacks
+    │   ├── utils.ts             # Tailwind class merges and local date utilities
+    │   └── weather.ts           # OpenWeather client with caching (TTL 15m) & coords lookup
     │
-    ├── pages/                   # Route-level Page Containers
-    │   ├── Index.tsx            # Main page loading Dashboard
-    │   └── NotFound.tsx         # Custom 404 page
-    │
-    └── test/                    # Automated Test Suites
-        ├── setup.ts             # Global test environments configuration
-        ├── gamification.test.ts # Tests evaluating streaks, badges, and milestones
-        └── hydration.test.ts    # Tests checking goals, intervals, and timezone groupings
+    └── test/                    # Isolated Unit Verification Tests
+        ├── setup.ts             # Test environment configurations
+        ├── gamification.test.ts # Tests evaluating streak triggers and achievements
+        └── hydration.test.ts    # Tests checking goals, intervals, and active hours
 ```
 
 ---
 
-## 🔄 Workflow & Execution Flow
+## 🔄 System & Execution Diagrams
 
-### 1. Application Boot & Auth Sequence
-This sequence details how the application checks for Supabase configuration, handles sessions, prompts login, and defaults to `localStorage` offline operations if necessary.
+### 1. User Session & Onboarding Sequence
+
+This flowchart describes how a user is authenticated (online with Supabase or offline using mock storage) and onboarded with their complete health metrics.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User as Client Browser
-    participant App as App.tsx / Router
-    participant DB as supabase.ts (db client)
+    participant Browser as Client Browser
     participant Auth as Auth.tsx Component
-    participant Dash as Dashboard.tsx
-    participant LS as LocalStorage
+    participant Supa as Supabase Auth & DB
+    participant Local as LocalStorage Cache
 
-    User->>App: Load Application
-    App->>DB: Check Supabase Credentials (URL / Anon Key)
-    alt Credentials Found (Full-Stack mode)
-        DB->>User: Request session check
-        alt Active Session Exists
-            User-->>Dash: Load User ID Session
-        else No Active Session
-            Dash->>Auth: Render Sign In / Sign Up UI
-            User->>Auth: Input Credentials or click "Continue Offline"
-            alt Click Continue Offline
-                Auth-->>Dash: Set Offline Mode (true)
-            else Successfully Authenticated
-                Auth->>DB: Create Session
-                DB-->>Dash: Load Authenticated Session
-            end
+    Browser->>Auth: Open HydroSmart
+    alt Active Session Exists
+      Auth-->>Browser: Redirect to Dashboard view
+    else No Session Found
+      Browser->>Auth: Render Login view (Email / Password)
+      alt Has No Account
+        Auth->>Browser: Open Registration Wizard (Steps 1-3)
+        Browser->>Auth: Input profile metrics, schedule, interval & credentials
+        alt Online (Supabase connected)
+          Auth->>Supa: signUp({email, password})
+          Supa-->>Auth: Create User Session
+          Auth->>Supa: db.saveProfile(userId, ProfileData)
+        else Offline (No Supabase url)
+          Auth->>Local: Save simulated credentials & profile
         end
-    else Credentials Missing (Offline Fallback mode)
-        DB-->>Dash: Flag Client Offline
+        Auth-->>Browser: Authenticate & Redirect to Dashboard
+      else Has Account
+        Browser->>Auth: Submit Login Form
+        alt Online
+          Auth->>Supa: signInWithPassword({email, password})
+          Supa->>Supa: Load Profile from DB
+        else Offline
+          Auth->>Local: Match credentials with mock storage
+        end
+        Auth-->>Browser: Redirect to Dashboard
+      end
     end
-
-    Dash->>DB: getProfile(userId)
-    alt Profile Exists
-        DB-->>Dash: Return UserProfile
-    else No Profile Found
-        Dash->>User: Render onboarding ProfileSetup
-        User->>Dash: Submit weight, city, wake/sleep hours
-        Dash->>DB: saveProfile(userId, profile)
-        DB->>LS: Cache Profile locally
-    end
-    Dash->>User: Display Dashboard
 ```
 
-### 2. Hydration Goal Calculation Logic
-The calculation engine dynamically adjusts fluid targets based on ambient inputs.
+---
+
+### 2. Weather-Adaptive Reminder Supplemental Rules
+
+This diagram maps the background scheduler logic executing every 60 seconds to evaluate scheduled vs adaptive reminders during active hours.
 
 ```mermaid
 flowchart TD
-    Weight[User Weight in kg] --> BaseCalculated{Base Goal Calculation}
-    BaseCalculated -->|weight * 35 ml| CompBase[Compare with 2500ml Minimum]
-    CompBase -->|Select Max value| GoalBase[Base Goal: max ml]
+    Start[Background scheduler ticks every 1 minute] --> ActiveHours{Is current time within wake-sleep hours?}
     
-    GoalBase --> TempCheck{Weather temp available?}
-    TempCheck -->|Yes: >25°C| TempBonus[Add 25ml per °C above 25°C<br/>Add 50ml per °C above 30°C]
-    TempCheck -->|No / Cool| HumidityCheck{Weather humidity available?}
+    ActiveHours -->|No| Skip[Log Skip & Wait for next tick]
+    ActiveHours -->|Yes| FetchLast[Fetch timestamp of most recent reminder log]
     
-    TempBonus --> HumidityCheck
-    HumidityCheck -->|Yes: <30% humidity| LowHum[Add +300ml]
-    HumidityCheck -->|Yes: 30-50% humidity| ModHum[Add +150ml]
-    HumidityCheck -->|No / High humidity| ManualGoalCheck{Is Manual Goal Enabled?}
+    FetchLast --> CalDiff[Calculate diffMinutes = now - lastReminderTime]
+    CalDiff --> CustomCheck{Is diffMinutes >= Profile.customInterval?}
     
-    LowHum --> ManualGoalCheck
-    ModHum --> ManualGoalCheck
+    CustomCheck -->|Yes| FireCustom[Trigger Custom Reminder<br/>Set reminderType = 'custom']
+    CustomCheck -->|No| WeatherAlerts{Is Weather Reminders Enabled?}
     
-    ManualGoalCheck -->|Yes| OverrideGoal[Return Profile Manual Goal ml]
-    ManualGoalCheck -->|No| RoundGoal[Round to nearest 50ml]
+    WeatherAlerts -->|No| Skip
+    WeatherAlerts -->|Yes| CheckTemp[Query active weather temperature]
     
-    OverrideGoal --> FinalGoal[🎯 Final Daily Hydration Target]
-    RoundGoal --> FinalGoal
+    CheckTemp --> Extreme{Is temp >= 40°C?}
+    Extreme -->|Yes| Check30{Is diffMinutes >= 30m?}
+    Check30 -->|Yes| FireWeather[Trigger Supplemental Weather Reminder<br/>Set reminderType = 'weather']
+    Check30 -->|No| Skip
+    
+    Extreme -->|No| Hot{Is temp >= 30°C?}
+    Hot -->|Yes| Check60{Is diffMinutes >= 60m?}
+    Check60 -->|Yes| FireWeather
+    Check60 -->|No| Skip
+    
+    Hot -->|No| Warm{Is temp >= 20°C?}
+    Warm -->|Yes| Check90{Is diffMinutes >= 90m?}
+    Check90 -->|Yes| FireWeather
+    Check90 -->|No| Skip
+    
+    Warm -->|No| Skip
+    
+    FireCustom --> Dispatch[Dispatch reminder to selected channels:<br/>In-App Popup / Email / WhatsApp]
+    FireWeather --> Dispatch
+    
+    Dispatch --> SaveLog[Save log entry to db and LocalStorage]
+    SaveLog --> UpdateUI[Update Dashboard timelines & analytics counts]
 ```
 
-### 3. Water Intake Logging & Badge Evaluation
-Logs are stored remotely in Supabase (if online) and mirrored locally, instantly triggering badge evaluation.
+---
+
+### 3. Geolocation & Weather Data Flow
+
+This chart explains the coordinate retrieval process, local caching rules, and UI status mapping.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant User as Client Browser
-    participant QA as QuickAdd / Custom Input
-    participant DB as supabase.ts (db client)
-    participant Game as gamification.ts
-    participant Toast as BadgeUnlockToast.tsx
-    participant UI as Dashboard View
-
-    User->>QA: Select Intake amount (e.g., 250ml)
-    QA->>DB: addIntakeLog(userId, 250ml)
-    DB->>DB: Insert into Supabase table "intake_logs"
-    Note right of DB: Falls back to LocalStorage logs if offline
-    DB-->>QA: Log entry returned (with timestamp & id)
-    QA->>UI: Trigger refreshToday() callback
-    UI->>DB: getAllLogs(userId)
-    DB-->>UI: Return all historical logs
-    UI->>Game: computeStats(allLogs, dailyGoal)
-    Game->>Game: Calculate active streak (daily target met)<br/>Calculate total litres logged
-    Game-->>UI: Return HydrationStats
-    UI->>Game: getNewlyUnlockedBadges(prevStats, currentStats)
-    alt New Badge Unlocked
-        Game-->>UI: Return unlocked Badge object
-        UI->>Toast: Render slide-in Badge notification
-        Toast->>User: Play animation & sound alert
-    end
-    UI->>User: Update circular progress ring and chart
+flowchart LR
+    UI[Dashboard Mounts] --> CacheCheck{Check Cache:<br/>Is city or coords in LocalStorage?}
+    CacheCheck -->|Yes & Fresh < 15m| LoadCache[Retrieve data from Cache]
+    CacheCheck -->|No / Expired| QueryLocation{Request Geolocation coordinates?}
+    
+    QueryLocation -->|Permission Granted| CoordsAPI[Fetch OpenWeatherMap via lat/lon]
+    QueryLocation -->|Permission Blocked / Fail| CityAPI[Fetch OpenWeatherMap via city name]
+    
+    CoordsAPI --> WriteCache[Save result to Cache<br/>Set timestamp & isMock = false]
+    CityAPI --> WriteCache
+    
+    WriteCache --> RefreshUI[Refresh Dashboard Weather Widget]
+    LoadCache --> RefreshUI
+    
+    RefreshUI --> RenderBadges[Render Live Weather Badge<br/>Show Celsius temp, humidity, and location name]
+    
+    style LoadCache fill:#0e7490,stroke:#0891b2,stroke-width:2px,color:#fff
+    style RenderBadges fill:#15803d,stroke:#166534,stroke-width:2px,color:#fff
 ```
 
 ---
 
 ## 🚀 Setup & Installation
 
-Follow these steps to configure and run HydroSmart locally on your machine.
-
 ### 1. Clone & Install Dependencies
-Ensure you have [Node.js](https://nodejs.org/) (version 18 or above) installed.
+Make sure you have Node.js (v18+) and npm installed.
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/ramalokeshreddyp/hydrosmart-ai.git
 cd hydrosmart-ai/aqua-smart-main
 
-# Install dependencies using npm
+# Install packages
 npm install
 ```
 
-### 2. Supabase Integration Setup
-To configure account syncing, you need to connect a Supabase project.
+### 2. Supabase Cloud Configuration
+Create a project on [Supabase](https://supabase.com/). In the SQL Editor, execute the database schema definitions inside `supabase/migrations/` to initialize tables:
+- `public.profiles`
+- `public.intake_logs`
+- `public.reminder_logs` (Ensure the `reminder_type` column is created or run the migration).
 
-1. Go to [Supabase](https://supabase.com/) and create a new project.
-2. In the project dashboard, go to the SQL Editor and execute the following database schemas:
-
-```sql
--- 1. Profiles Table (Linked to Supabase auth.users)
-CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  name TEXT NOT NULL,
-  weight NUMERIC NOT NULL,
-  age INTEGER NOT NULL,
-  gender TEXT NOT NULL DEFAULT 'other',
-  city TEXT NOT NULL,
-  wake_time TEXT NOT NULL DEFAULT '07:00',
-  sleep_time TEXT NOT NULL DEFAULT '23:00',
-  work_start TEXT NOT NULL DEFAULT '09:00',
-  work_end TEXT NOT NULL DEFAULT '17:00',
-  custom_interval INTEGER NOT NULL DEFAULT 60,
-  weather_reminders_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  channels TEXT[] NOT NULL DEFAULT ARRAY['in-app'],
-  email TEXT,
-  phone TEXT,
-  manual_goal INTEGER,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can manage their own profiles" ON public.profiles;
-CREATE POLICY "Users can manage their own profiles" 
-  ON public.profiles FOR ALL 
-  USING (auth.uid() = id);
-
--- 2. Water Intake Logs Table
-CREATE TABLE public.intake_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  amount INTEGER NOT NULL,
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
-ALTER TABLE public.intake_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can manage their own intake logs" ON public.intake_logs;
-CREATE POLICY "Users can manage their own intake logs" 
-  ON public.intake_logs FOR ALL 
-  USING (auth.uid() = user_id);
-
--- 3. Reminder Logs Table
-CREATE TABLE public.reminder_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-  temp NUMERIC NOT NULL,
-  city TEXT NOT NULL,
-  interval_minutes INTEGER NOT NULL,
-  channels TEXT[] NOT NULL,
-  action TEXT NOT NULL DEFAULT 'pending',
-  amount_logged INTEGER
-);
-
-ALTER TABLE public.reminder_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can manage their own reminder logs" ON public.reminder_logs;
-CREATE POLICY "Users can manage their own reminder logs" 
-  ON public.reminder_logs FOR ALL 
-  USING (auth.uid() = user_id);
-```
-
-3. Copy `.env.example` to create a `.env` file in the project root:
+### 3. Environment Credentials Setup
+Create a `.env` file in the project root:
 ```bash
 cp .env.example .env
 ```
-4. Insert your project's credentials into `.env`:
+Open `.env` and configure your API credentials:
 ```env
+# Supabase Cloud variables
 VITE_SUPABASE_URL=https://your-supabase-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-public-key
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# OpenWeatherMap API Key (Verify weather accuracy)
+VITE_WEATHER_API_KEY=fa1a86bf8d3d3f0c3a097ec917840d69
 ```
 
 > [!NOTE]
-> If `.env` is missing or variables are empty, HydroSmart automatically runs in **Offline Mode**, skipping server authentication and storing logs entirely in `localStorage`.
+> Leaving Supabase variables blank will run the app in **Offline mode** utilizing local mock storage.
 
-### 3. Run the Project Locally
+### 4. Execution Commands
 
 ```bash
-# Start the development server
+# Start local development server (http://localhost:5173)
 npm run dev
 
-# Run unit tests to check functionality
+# Run Vitest test runners
 npm run test
 
-# Compile production bundle
+# Run build compiling for production (outputs to dist/)
 npm run build
 ```
-The development server will mount locally at `http://localhost:5173`.
 
 ---
 
-## 📖 Detailed Usage Instructions
+## 📖 SaaS Functional Breakdown
 
-1. **Sign Up or Sign In**: Provide your email and password to log in. Click **"Continue Offline"** to bypass if testing without database configuration.
-2. **Onboarding**: Fill in your weight (used for the baseline intake: 35ml per kg), default city (used to pull current weather coordinates), and awake periods.
-3. **Log Intake**: Use Quick Add buttons (`150ml`, `250ml`, `500ml`) or log custom amounts.
-4. **Weather Simulator**: Toggle between "Normal Office", "Cold Day", or "Heatwave" presets in the weather widget to see targets and interval times adjust immediately.
-5. **Smart Reminders**: Grant notification permissions and turn on reminders. The scheduler calculates interval timings based on your active wake window and temperature.
-6. **Analytics Panel**: Expand sections to inspect weekly bar charts, average volumes, and completion percentages.
+### Multi-Step Onboarding
+The onboarding/registration form is structured in a 3-step wizard to prevent layout clutter:
+1. **Core Metrics**: Personal health statistics (weight baseline determines hydration metrics, city name or automatic browser geolocation determines weather lookup). A "Detect" location button is provided to automatically extract the user's city from their browser coordinates.
+2. **Scheduling & Alert Interval**: Standard wake-up, sleep, and work hours. Set custom base reminder interval (mandatory), toggle weather adaptive alerts, and enter a mandatory daily water goal (must be at least 500 ml).
+3. **Delivery Channels**: Checkboxes for In-App browser popups, Email (tied to account, no double field), and WhatsApp (validates Indian mobile numbers). Register email/password to finish.
+
+### SaaS Header & Navigation Layout
+The redesigned header replaces mobile modals with a desktop top-navigation bar:
+- **Nav Tabs**: Inline toggle between **Dashboard** and **Settings** tab views.
+- **Connection Status**: Renders current temperature, weather emoji, city coordinates, and a sync indicator (Green for Live API sync, Orange for Mock Simulation).
+- **Theme Toggle**: Icon switches between Light and Dark modes. Colors adapt with a transition class, making changes feel smooth.
+
+### Hydration Tracking & PWA Installation
+- **Mandatory Goal**: Daily water intake tracking is mandatory. The dashboard features a clean, card-based responsive layout displaying the water progress ring, quick-log buttons, and history charts.
+- **Progressive Web App (PWA)**: HydroSmart is fully configured as an installable Progressive Web App. When opening the website in a compatible browser:
+  - An inline banner prompt appears: **Install HydroSmart Web App** with a **Download App** button.
+  - A quick shortcut button **Install App** is rendered directly in the header next to the theme toggle.
+  - Caching is managed locally by a service worker (`sw.js`) to support standalone mobile and desktop launching.
+
+### Visual Reminder & Hydration Analytics
+- **Dispatch Outbox**: A table at the right displays the history of dispatched alerts (date, time, type: custom vs weather, and channel outcome).
+- **Analytics Visuals**: Includes Recharts charts representing daily custom vs weather reminder volumes, hourly reminder density patterns, and weekly intake history compared to goals.
 
 ---
 
 ## 🏆 Gamification & Milestones
 
-HydroSmart evaluates 14 badges under 4 rarity tiers. Keep hydrated to unlock achievements:
-
-* 🥉 **Bronze**:
-  * **First Sip**: Log your first intake of the day.
-  * **Halfway**: Log at least 50% of your daily goal.
-  * **Consistent**: Log intake for 3 consecutive days.
-  * **Week One**: Complete 7 consecutive tracking days.
-  * **10L Total**: Reach 10,000ml of total logged intake.
-* 🥈 **Silver**:
-  * **Goal Crusher**: Hit your daily hydration target.
-  * **On Fire**: Keep a streak of 7 consecutive days.
-  * **50L Total**: Reach 50,000ml of total logged intake.
-  * **Monthly**: Track daily intake for 30 consecutive days.
-* 🥇 **Gold**:
-  * **Overachiever**: Complete 150% of your calculated daily goal.
-  * **10 Goals**: Meet your daily goal target 10 times.
-  * **Unstoppable**: Maintain a streak of 14 consecutive days.
-  * **Ocean**: Reach 100,000ml of total logged intake.
-* 💎 **Diamond**:
-  * **Legend**: Maintain a streak of 30 consecutive days.
+Unlocking milestone achievement badges is dynamically checked upon log entry:
+- 🥉 **Bronze**: *First Sip*, *Halfway (50% goal)*, *Consistent (3-day streak)*, *Week One*, *10L Total*.
+- 🥈 **Silver**: *Goal Crusher (100% goal)*, *On Fire (7-day streak)*, *50L Total*, *Monthly (30-day consistency)*.
+- 🥇 **Gold**: *Overachiever (150% goal)*, *10 Goals*, *Unstoppable (14-day streak)*, *Ocean (100L)*.
+- 💎 **Diamond**: *Legend (30-day streak)*.
 
 ---
 
 <p align="center">
-  Built with 💧 for a healthier, highly productive daily routine.
+  Optimizing workspace health, focus, and hydration.
 </p>

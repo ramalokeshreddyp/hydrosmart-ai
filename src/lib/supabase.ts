@@ -166,6 +166,9 @@ export const db = {
           channels: ("in-app" | "email" | "whatsapp")[];
           action: "logged" | "snoozed" | "dismissed" | "pending";
           amount_logged: number | null;
+          reminder_type?: "custom" | "weather";
+          title?: string;
+          message?: string;
         }) => ({
           id: l.id,
           timestamp: l.timestamp,
@@ -175,6 +178,9 @@ export const db = {
           channels: l.channels,
           action: l.action,
           amountLogged: l.amount_logged ?? undefined,
+          reminderType: l.reminder_type || "custom",
+          title: l.title,
+          message: l.message,
         }));
         localStorage.setItem("hydration_reminder_logs", JSON.stringify(mapped));
         return mapped;
@@ -200,6 +206,7 @@ export const db = {
           channels: log.channels,
           action: log.action,
           amount_logged: log.amountLogged,
+          reminder_type: log.reminderType,
         });
         if (error) console.error("Supabase reminder save error:", error);
       } catch (err) {
