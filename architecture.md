@@ -88,8 +88,8 @@ graph TD
     Nav -->|ActiveTab: 'settings'| SettingsView[Settings View Page]
     
     subgraph DashView["Dashboard Tab Columns"]
-        Col1["Column 1<br/>Water Intake Circle & Quick Add<br/>(Hidden if Goal is Null)"]
-        Col2["Column 2<br/>Live Weather card,<br/>Schedule toggles & preset simulations"]
+        Col1["Column 1<br/>Daily Hydration Tracker<br/>(Goal Progress & Quick Add)"]
+        Col2["Column 2<br/>Live Weather Card &<br/>Scheduler Status Card"]
         Col3["Column 3<br/>Reminder stats Today/Week/Month<br/>Timeline log outbox"]
         Bottom["Full Width Bottom Section<br/>Daily Intake, Dispatch Area, and Hour Density Charts"]
     end
@@ -99,6 +99,7 @@ graph TD
         Health["Personal Health Metrics<br/>(Name, Weight, Age, Gender)"]
         Schedule["Time Schedule<br/>(Wake, Sleep, Work Start/End, City, Interval)"]
         Channels["Delivery Channels<br/>(In-App, Email, WhatsApp Indian phone)"]
+        Gateways["API Gateways<br/>(Resend, WhatsApp Cloud API keys)"]
     end
 ```
 
@@ -107,15 +108,17 @@ graph TD
 ## 4. Dual-Reminder Dispatch Engine
 
 The reminder scheduler uses two concurrent alert models:
-1. **Mandatory Custom reminders**: Set by the user (e.g. every 2 hours). These always execute during work hours.
-2. **Supplemental Weather reminders**: Checked periodically against temperature levels. Spikes in local heat trigger additional alerts, decoupled from custom reminders.
+1. **Mandatory Custom reminders**: Set by the user (e.g. every 11m, 30m). These execute during wake hours and preferably work hours.
+2. **Supplemental Weather reminders**: Checked against outdoor temperatures. Spikes or drops in local heat trigger supplemental breaks at strict intervals (30m, 1h, 2h, or 3h), decoupled from custom reminders.
 
 ### Background Check Flow (1-Minute Interval):
 
 ```mermaid
 flowchart TD
-    Tick[Scheduler ticks every 1 minute] --> CheckWork{Is local time within work hours?}
-    CheckWork -->|No| Skip[Skip Alert & Wait]
+    Tick[Scheduler ticks every 1 minute] --> CheckWake{Is time within Wake-up & Sleep hours?}
+    CheckWake -->|No| Skip[Skip Alert & Wait]
+    CheckWake -->|Yes| CheckWork{Is time within Work hours?}
+    CheckWork -->|No| Skip
     CheckWork -->|Yes| LastLog[Fetch timestamps of latest custom reminder and latest weather reminder]
     
     LastLog --> Diff[Calculate diffMinutesCustom = now - lastCustomTime<br/>and diffMinutesWeather = now - lastWeatherTime]
@@ -127,17 +130,24 @@ flowchart TD
     AdaptiveCheck -->|No| Skip
     AdaptiveCheck -->|Yes| ReadTemp[Fetch current temperature]
     
-    ReadTemp --> Extreme{Is temp >= 40°C?}
-    Extreme -->|Yes| Check30{Is diffMinutesWeather >= 30m?}
-    Check30 -->|Yes| FireWeather[Trigger Supplemental Weather Reminder<br/>Set reminderType = 'weather']
+    ReadTemp --> TempRule1{temp > 40°C?}
+    TempRule1 -->|Yes| Check30{Is diffMinutesWeather >= 30m?}
+    Check30 -->|Yes| FireWeather[Trigger Weather Reminder<br/>Set reminderType = 'weather']
     Check30 -->|No| Skip
     
-    Extreme -->|No| Hot{Is temp >= 30°C?}
-    Hot -->|Yes| Check60{Is diffMinutesWeather >= 60m?}
+    TempRule1 -->|No| TempRule2{temp >= 30°C and <= 40°C?}
+    TempRule2 -->|Yes| Check60{Is diffMinutesWeather >= 60m?}
     Check60 -->|Yes| FireWeather
     Check60 -->|No| Skip
     
-    Hot -->|No| Skip
+    TempRule2 -->|No| TempRule3{temp >= 20°C and < 30°C?}
+    TempRule3 -->|Yes| Check120{Is diffMinutesWeather >= 120m?}
+    Check120 -->|Yes| FireWeather
+    Check120 -->|No| Skip
+    
+    TempRule3 -->|No| Check180{Is diffMinutesWeather >= 180m?}
+    Check180 -->|Yes| FireWeather
+    Check180 -->|No| Skip
     
     FireCustom --> LogAlert[Create Log Entry & Dispatch to Channels]
     FireWeather --> LogAlert

@@ -44,13 +44,15 @@ Serves as the main workspace container.
 
 ### C. Background Adaptive Scheduler (`src/lib/notifications.ts`)
 Executes checks every 60 seconds.
-- Checks if the user is inside their active work hours (`workStart` to `workEnd`).
+- Checks that the current time is strictly within the user's **wake-up time** and **sleep time**.
+- If work hours are configured, preferably restricts reminders to also run within **work start time** and **work end time**.
 - Computes time elapsed since the last scheduled custom reminder (`diffMinutesCustom`) and since the last weather reminder (`diffMinutesWeather`).
 - Triggers a scheduled custom reminder if `diffMinutesCustom >= customInterval` (decoupled from weather alerts).
 - Triggers supplemental weather reminders if `weatherRemindersEnabled` is active and `diffMinutesWeather` exceeds weather thresholds:
-  - Temperature $\ge 40^\circ\text{C}$ and time since last weather reminder $\ge 30$ mins.
-  - Temperature $\ge 30^\circ\text{C}$ and time since last weather reminder $\ge 60$ mins.
-  - Temperature $< 30^\circ\text{C}$: no weather break alarms (it is "okay").
+  - Temperature $> 40^\circ\text{C}$ and time since last weather reminder $\ge 30$ mins.
+  - Temperature $30^\circ\text{C}\text{--}40^\circ\text{C}$ and time since last weather reminder $\ge 1$ hour (60 mins).
+  - Temperature $20^\circ\text{C}\text{--}30^\circ\text{C}$ and time since last weather reminder $\ge 2$ hours (120 mins).
+  - Temperature $< 20^\circ\text{C}$ and time since last weather reminder $\ge 3$ hours (180 mins).
 
 ### D. Weather Cache & Geolocation Client (`src/lib/weather.ts`)
 Fetches and caches weather conditions.
@@ -65,6 +67,7 @@ Allows modifying profile details:
 - Personal metrics (Name, Weight, Age, Gender, City with GPS auto-detect toggle).
 - Schedule (Wake, Sleep, Work Start/End, Custom Interval, Weather switch, Mandatory Daily Goal).
 - Channel options (In-App, Email, WhatsApp Indian phone).
+- **API Integration Gateways**: Configure **Resend API Key** and **WhatsApp Cloud API credentials** (Access Token and Phone Number ID) for real-world notification delivery.
 
 ---
 
